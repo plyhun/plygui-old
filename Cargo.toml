@@ -1,0 +1,25 @@
+[package]
+name = "plygui"
+version = "0.0.1"
+authors = ["Serhii Plyhun <snuk188@gmail.com>"]
+
+[lib]
+name = "plygui"
+path = "src/lib.rs"
+
+#[target.'cfg(target_os = "windows")'.dependencies]
+#[dependencies]
+#user32-sys = "~0.2"
+#gdi32-sys = "~0.2"
+#kernel32-sys = "~0.2"
+#comctl32-sys = "~0.2"
+#comdlg32-sys = "~0.2"
+#winapi = "~0.2"
+#lazy_static = "~0.2"
+
+#[target.'cfg(target_os = "macos")'.dependencies]
+[dependencies]
+cocoa = "~0.9"
+core-foundation = "~0.3"
+objc = "~0.2"
+lazy_static = "~0.2"
