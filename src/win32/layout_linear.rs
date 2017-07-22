@@ -150,6 +150,13 @@ impl UiMultiContainer for LinearLayout {
         }
         Some(self.children.remove(index + 1))
     }
+    fn remove_child_from(&mut self, index: usize) -> Option<Box<UiControl>> {
+    	if index < self.children.len() {
+    		Some(self.children.remove(index))
+    	} else {
+    		None
+    	}
+    }
     fn child_at(&self, index: usize) -> Option<&Box<UiControl>> {
         self.children.get(index)
     }

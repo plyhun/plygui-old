@@ -1,22 +1,20 @@
 use super::*;
+use super::common::*;
 
-use self::cocoa::appkit::{NSBezelStyle, NSButton, NSEvent};
-use self::cocoa::foundation::{NSString, NSAutoreleasePool, NSRect, NSSize, NSPoint};
-use self::cocoa::base::{id, nil};
-use objc::runtime::{Class, Object, Sel, BOOL, YES, NO};
+use self::cocoa::appkit::{NSBezelStyle, NSButton};
+use self::cocoa::foundation::{NSString, NSRect, NSSize, NSPoint};
+use self::cocoa::base::id;
+use objc::runtime::{Class, Object, Sel};
 use objc::declare::ClassDecl;
 
 use std::mem;
 use std::os::raw::c_void;
 
-struct RefClass(*const Class);
-unsafe impl Sync for RefClass {}
-
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
-use {layout, UiRole, UiControl, UiButton, UiMember};
+use {layout, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility};
 
 #[repr(C)]
 pub struct Button {
@@ -76,15 +74,43 @@ impl UiControl for Button {
             }
         }
     }
-    fn measure(&mut self, w: u16, h: u16) -> (u16, u16) {
-        self.base.measured_size = (w, h);
-        self.base.measured_size
+    fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
+        unsafe {
+        	let mut label_size = (0, 0);
+	        let w = match self.base.layout_width {
+	            layout::Params::MatchParent => parent_width,
+	            layout::Params::Exact(w) => w,
+	            layout::Params::WrapContent => {
+	                if label_size.0 < 1 {
+	                    label_size = common::measure_string(self.label.as_ref());
+	                }
+	                label_size.0 as u16
+	            } 
+	        };
+	        let h = match self.base.layout_height {
+	            layout::Params::MatchParent => parent_height,
+	            layout::Params::Exact(h) => h,
+	            layout::Params::WrapContent => {
+	                if label_size.1 < 1 {
+	                    label_size = common::measure_string(self.label.as_ref());
+	                }
+	                label_size.1 as u16
+	            } 
+	        };
+	        let ret = (w, h);
+	        self.base.measured_size = ret;
+	        ret
+        }
     }
 }
 
 impl UiMember for Button {
-    fn show(&mut self) {}
-    fn hide(&mut self) {}
+    fn set_visibility(&mut self, visibility: Visibility) {
+    	self.base.visibility = visibility;
+    }
+    fn visibility(&self) -> Visibility {
+    	self.base.visibility
+    }
     fn size(&self) -> (u16, u16) {
         self.base.measured_size
     }
@@ -92,15 +118,11 @@ impl UiMember for Button {
         self.base.h_resize = handler;
     }
 
-    fn role<'a>(&'a mut self) -> UiRole<'a> {
+    fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::Button(self)
     }
-}
-
-impl Drop for Button {
-    fn drop(&mut self) {
-        self.hide();
-        //unsafe { msg_send![self.base.control, dealloc]; }
+    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
+        UiRoleMut::Button(self)
     }
 }
 
@@ -111,7 +133,7 @@ unsafe impl common::CocoaControl for Button {
 
         let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
                                NSSize::new(w as f64, h as f64));
-
+        
         let base: id = msg_send![WINDOW_CLASS.0, alloc];
         let base: id = msg_send![base, initWithFrame: rect];
 
@@ -119,13 +141,13 @@ unsafe impl common::CocoaControl for Button {
 
         let title = NSString::alloc(cocoa::base::nil).init_str(self.label.as_ref());
         self.base.control.setTitle_(title);
-        self.base.control.setBezelStyle_(NSBezelStyle::NSRoundedBezelStyle);
+        self.base.control.setBezelStyle_(NSBezelStyle::NSSmallSquareBezelStyle);
 
         (&mut *self.base.control).set_ivar("nativeUiButton",
                                            self as *mut _ as *mut ::std::os::raw::c_void);
     }
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
-        msg_send![self.base.control, dealloc];
+    	self.base.on_removed_from_container();
     }
 
     unsafe fn base(&mut self) -> &mut common::CocoaControlBase {

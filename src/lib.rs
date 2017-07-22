@@ -18,36 +18,33 @@ use cocoa as inner;
 
 pub mod layout;
 
-//pub use inner::{Window, Button, LinearLayout};
-pub use inner::{Window, Button};
+pub use inner::{Application, Window, Button, LinearLayout};
 
 pub enum UiRole<'a> {
+    Window(&'a UiWindow),
+    Button(&'a UiButton),
+    LinearLayout(&'a UiLinearLayout),
+}
+pub enum UiRoleMut<'a> {
     Window(&'a mut UiWindow),
     Button(&'a mut UiButton),
     LinearLayout(&'a mut UiLinearLayout),
 }
 
-/*struct UiControlBase {
-	pub signature: usize,
-	pub os_signature: usize,
-	pub type_signature: usize,
-}*/
+pub trait UiApplication: Drop {
+	fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window>;
+	fn name(&self) -> &str;
+	fn start(&mut self);
+}
 
 pub trait UiMember {
-    fn show(&mut self);
-    fn hide(&mut self);
+    fn set_visibility(&mut self, visibility: Visibility);
+    fn visibility(&self) -> Visibility;
     fn size(&self) -> (u16, u16);
     fn on_resize(&mut self, Option<Box<FnMut(&mut UiMember, u16, u16)>>);
     
-    /*fn handle(&mut self);
-	fn parent(&self) -> Option<&UiControl>;
-	fn top_level(&self) -> bool;
-	fn visible(&self) -> bool;
-	fn enabled(&self) -> bool;
-	fn enable(&mut self);
-	fn disable(&mut self);*/
-
-    fn role<'a>(&'a mut self) -> UiRole<'a>;
+    fn role<'a>(&'a self) -> UiRole<'a>;
+    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
 }
 
 pub trait UiControl: UiMember {
@@ -68,13 +65,19 @@ pub trait UiMultiContainer {
     fn pop_child(&mut self) -> Option<Box<UiControl>>;
     fn len(&self) -> usize;
     fn set_child_to(&mut self, index: usize, Box<UiControl>) -> Option<Box<UiControl>>;
+    fn remove_child_from(&mut self, index: usize) -> Option<Box<UiControl>>;
     fn child_at(&self, index: usize) -> Option<&Box<UiControl>>;
     fn child_at_mut(&mut self, index: usize) -> Option<&mut Box<UiControl>>;
+    fn clear(&mut self) {
+    	let len = self.len();
+    	for index in (0..len).rev() {
+    		self.remove_child_from(index);
+    	}
+    }
 }
 
 pub trait UiWindow: UiMember {
-    //fn new(title: &str, width: u16, height: u16, has_menu: bool) -> Box<Self>;
-    fn start(&mut self);
+	
 }
 
 pub trait UiButton: UiControl {
@@ -90,4 +93,11 @@ pub trait UiLinearLayout: UiMultiContainer + UiControl {
 
 pub trait UiRelativeLayout: UiMultiContainer + UiControl {
 	
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+	Visible,
+	Invisible,
+	Gone,
 }
