@@ -15,6 +15,8 @@ lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
+const PADDING: u16 = 15;
+
 use {layout, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility, UiContainer};
 
 #[repr(C)]
@@ -95,6 +97,8 @@ impl UiControl for Button {
 			            layout::Params::WrapContent => {
 			                if label_size.0 < 1 {
 			                    label_size = common::measure_string(self.label.as_ref());
+			                    label_size.0 += PADDING;
+			                    label_size.1 += PADDING;
 			                }
 			                label_size.0 as u16
 			            } 
@@ -105,6 +109,8 @@ impl UiControl for Button {
 			            layout::Params::WrapContent => {
 			                if label_size.1 < 1 {
 			                    label_size = common::measure_string(self.label.as_ref());
+			                    label_size.0 += PADDING;
+			                    label_size.1 += PADDING;
 			                }
 			                label_size.1 as u16
 			            } 
@@ -173,6 +179,7 @@ unsafe impl common::CocoaControl for Button {
 
         (&mut *self.base.control).set_ivar(IVAR,
                                            self as *mut _ as *mut ::std::os::raw::c_void);
+        msg_send![title, release];
     }
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
     	self.base.on_removed_from_container();
