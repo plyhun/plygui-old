@@ -27,7 +27,7 @@ impl Application {
 		        app: msg_send![WINDOW_CLASS.0, sharedApplication],
 		        name: name.into(),
 	        });	        
-	        (&mut *app.app).set_ivar("nativeUiApplication",
+	        (&mut *app.app).set_ivar("plyguiApplication",
                                            app.as_mut() as *mut _ as *mut ::std::os::raw::c_void);
 	        app.app.setActivationPolicy_(NSApplicationActivationPolicyRegular);
 	        app
@@ -35,7 +35,6 @@ impl Application {
 	}
 	
 	pub(crate) fn on_window_closed(&mut self) {
-		//unsafe { msg_send![self.app, dealloc]; }
 		println!("App closed");
 		//unsafe { msg_send![class("NSApp"), terminate:self]; }
 	}
@@ -43,7 +42,7 @@ impl Application {
 
 impl UiApplication for Application {
 	fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
-		Window::new(self.app, title, width, height, has_menu)
+		Window::new(title, width, height, has_menu)
 	}
 	fn name(&self) -> &str {
 		self.name.as_ref()
@@ -61,9 +60,9 @@ impl Drop for Application {
 
 unsafe fn register_window_class() -> RefClass {
     let superclass = Class::get("NSApplication").unwrap();
-    let mut decl = ClassDecl::new("NativeUiApplication", superclass).unwrap();
+    let mut decl = ClassDecl::new("PlyguiApplication", superclass).unwrap();
 
-    decl.add_ivar::<*mut c_void>("nativeUiApplication");
+    decl.add_ivar::<*mut c_void>("plyguiApplication");
 
     RefClass(decl.register())
 }

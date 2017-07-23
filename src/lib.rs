@@ -6,7 +6,6 @@ mod win32;
 #[cfg(target_os="windows")]
 use win32 as inner;
 
-
 #[cfg(target_os = "macos")]
 #[macro_use]
 extern crate objc;
@@ -18,18 +17,9 @@ use cocoa as inner;
 
 pub mod layout;
 
-pub use inner::{Application, Window, Button, LinearLayout};
+pub use inner::{Id, Application, Window, Button, LinearLayout};
 
-pub enum UiRole<'a> {
-    Window(&'a UiWindow),
-    Button(&'a UiButton),
-    LinearLayout(&'a UiLinearLayout),
-}
-pub enum UiRoleMut<'a> {
-    Window(&'a mut UiWindow),
-    Button(&'a mut UiButton),
-    LinearLayout(&'a mut UiLinearLayout),
-}
+pub use std::fmt::{Result as FmtResult, Formatter, Debug};
 
 pub trait UiApplication: Drop {
 	fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window>;
@@ -45,6 +35,7 @@ pub trait UiMember {
     
     fn role<'a>(&'a self) -> UiRole<'a>;
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
+    fn id(&self) -> Id;
 }
 
 pub trait UiControl: UiMember {
@@ -52,12 +43,26 @@ pub trait UiControl: UiMember {
     fn set_layout_params(&mut self, layout::Params, layout::Params);
     fn draw(&mut self, x: u16, y: u16);
     fn measure(&mut self, w: u16, h: u16) -> (u16, u16);
+    
+    fn is_container_mut(&mut self) -> Option<&mut UiContainer>;
+    fn is_container(&self) -> Option<&UiContainer>;
+    
+    fn parent(&self) -> Option<&UiContainer>;
+    fn parent_mut(&mut self) -> Option<&mut UiContainer>;
+    fn root(&self) -> Option<&UiContainer>;
+    fn root_mut(&mut self) -> Option<&mut UiContainer>;
 }
 
 pub trait UiContainer: UiMember {
 	fn set_child(&mut self, Option<Box<UiControl>>) -> Option<Box<UiControl>>;
-	fn child(&self) -> Option<&Box<UiControl>>;
-	fn child_mut(&mut self) -> Option<&mut Box<UiControl>>;
+	fn child(&self) -> Option<&UiControl>;
+	fn child_mut(&mut self) -> Option<&mut UiControl>;
+	
+	fn find_control_by_id_mut(&mut self, id: Id) -> Option<&mut UiControl>;
+	fn find_control_by_id(&self, id: Id) -> Option<&UiControl>;
+	
+	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer>;
+	fn is_multi(&self) -> Option<&UiMultiContainer>;
 }
 
 pub trait UiMultiContainer {
@@ -100,4 +105,34 @@ pub enum Visibility {
 	Visible,
 	Invisible,
 	Gone,
+}
+
+pub enum UiRole<'a> {
+    Window(&'a UiWindow),
+    Button(&'a UiButton),
+    LinearLayout(&'a UiLinearLayout),
+}
+pub enum UiRoleMut<'a> {
+    Window(&'a mut UiWindow),
+    Button(&'a mut UiButton),
+    LinearLayout(&'a mut UiLinearLayout),
+}
+
+impl <'a> Debug for UiRole<'a> {
+	fn fmt(&self, f: &mut Formatter) -> FmtResult {
+		match *self {
+			UiRole::Window(a) => write!(f, "UiWindow ({:?})", a.id()),
+			UiRole::Button(a) => write!(f, "UiButton ({:?})", a.id()),
+			UiRole::LinearLayout(a) => write!(f, "UiLinearLayout ({:?})", a.id()),
+		}
+	}
+}
+impl <'a> Debug for UiRoleMut<'a> {
+	fn fmt(&self, f: &mut Formatter) -> FmtResult {
+		match *self {
+			UiRoleMut::Window(ref a) => write!(f, "UiWindow ({:?})", a.id()),
+			UiRoleMut::Button(ref a) => write!(f, "UiButton ({:?})", a.id()),
+			UiRoleMut::LinearLayout(ref a) => write!(f, "UiLinearLayout ({:?})", a.id()),
+		}
+	}
 }

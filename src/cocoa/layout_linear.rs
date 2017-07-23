@@ -3,13 +3,14 @@ use super::common::*;
 
 use self::cocoa::appkit::NSView;
 use self::cocoa::foundation::{NSRect, NSSize, NSPoint};
-use self::cocoa::base::id;
+use self::cocoa::base::id as cocoa_id;
 use objc::runtime::{Class, Object};
 use objc::declare::ClassDecl;
 
 use std::mem;
 use std::os::raw::c_void;
 
+pub const IVAR: &str = "plyguiLinearLayout";
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
@@ -34,10 +35,10 @@ impl LinearLayout {
 }
 impl UiMember for LinearLayout {
     fn set_visibility(&mut self, visibility: Visibility) {
-    	self.base.visibility = visibility;
+    	self.base.set_visibility(visibility);
     }
     fn visibility(&self) -> Visibility {
-    	self.base.visibility
+    	self.base.visibility()
     }
     fn size(&self) -> (u16, u16) {
         self.base.measured_size
@@ -52,7 +53,10 @@ impl UiMember for LinearLayout {
     }
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::LinearLayout(self)
-    }    
+    } 
+    fn id(&self) -> Id {
+    	self.base.id()
+    }   
 }
 
 impl UiControl for LinearLayout {
@@ -83,7 +87,7 @@ impl UiControl for LinearLayout {
         if let Some(ref mut cb) = self.base.h_resize {
             unsafe {
             	let object: &Object = mem::transmute(self.base.control);
-	            let saved: *mut c_void = *object.get_ivar("nativeUiLinearLayout");
+	            let saved: *mut c_void = *object.get_ivar(IVAR);
 	            let mut ll2: &mut LinearLayout = mem::transmute(saved);
 	            (cb)(ll2,
 	                 self.base.measured_size.0,
@@ -125,6 +129,24 @@ impl UiControl for LinearLayout {
         self.base.measured_size = (w, h);
         self.base.measured_size
     }
+    fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
+		Some(self)
+	}
+    fn is_container(&self) -> Option<&UiContainer> {
+    	Some(self)
+    }
+    fn parent(&self) -> Option<&UiContainer> {
+    	self.base.parent()
+    }
+    fn parent_mut(&mut self) -> Option<&mut UiContainer> {
+    	self.base.parent_mut()
+    }
+    fn root(&self) -> Option<&UiContainer> {
+    	self.base.root()
+    }
+    fn root_mut(&mut self) -> Option<&mut UiContainer> {
+    	self.base.root_mut()
+    }    
 }
 
 impl UiMultiContainer for LinearLayout {
@@ -204,12 +226,57 @@ impl UiContainer for LinearLayout {
     	
         old
     }
-    fn child(&self) -> Option<&Box<UiControl>> {
-        self.children.get(0)
+    fn child(&self) -> Option<&UiControl> {
+        self.children.get(0).map(|c|c.as_ref())
     }
-    fn child_mut(&mut self) -> Option<&mut Box<UiControl>> {
-        self.children.get_mut(0)
+    fn child_mut(&mut self) -> Option<&mut UiControl> {
+        //self.children.get_mut(0).map(|c|c.as_mut()) // WTF??
+        if self.children.len() > 0 {
+        	Some(self.children[0].as_mut())
+        } else {
+        	None
+        }
     }
+    fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
+    	if self.id() == id_ {
+    		return Some(self);
+    	}
+    	for child in self.children.as_mut_slice() {
+    		if child.id() == id_ {
+    			return Some(child.as_mut());
+    		} else if let Some(c) = child.is_container_mut() {
+    			let ret = c.find_control_by_id_mut(id_);
+    			if ret.is_none() {
+    				continue;
+    			}
+    			return ret;
+    		}
+    	}
+    	None
+    }
+	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+		if self.id() == id_ {
+    		return Some(self);
+    	}
+    	for child in self.children.as_slice() {
+    		if child.id() == id_ {
+    			return Some(child.as_ref());
+    		} else if let Some(c) = child.is_container() {
+    			let ret = c.find_control_by_id(id_);
+    			if ret.is_none() {
+    				continue;
+    			}
+    			return ret;
+    		}
+    	}
+    	None
+	}
+	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+		Some(self)
+	}
+	fn is_multi(&self) -> Option<&UiMultiContainer> {
+		Some(self)
+	}
 }
 
 impl UiLinearLayout for LinearLayout {
@@ -222,7 +289,7 @@ impl UiLinearLayout for LinearLayout {
 }
 
 unsafe impl CocoaContainer for LinearLayout {
-	unsafe fn id(&self) -> id {
+	unsafe fn cocoa_id(&self) -> cocoa_id {
 		self.base.control
 	}
 }
@@ -235,11 +302,11 @@ unsafe impl CocoaControl for LinearLayout {
         let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
                                NSSize::new(w as f64, h as f64));
 
-        let base: id = msg_send![WINDOW_CLASS.0, alloc];
-        let base: id = msg_send![base, initWithFrame: rect];
+        let base: cocoa_id = msg_send![WINDOW_CLASS.0, alloc];
+        let base: cocoa_id = msg_send![base, initWithFrame: rect];
 
         self.base.control = msg_send![base, autorelease];
-        (&mut *self.base.control).set_ivar("nativeUiLinearLayout",
+        (&mut *self.base.control).set_ivar(IVAR,
                                            self as *mut _ as *mut ::std::os::raw::c_void);
         
         let mut x = 0;
@@ -277,9 +344,9 @@ unsafe impl CocoaControl for LinearLayout {
 
 unsafe fn register_window_class() -> RefClass {
     let superclass = Class::get("NSView").unwrap();
-    let mut decl = ClassDecl::new("NativeUiLinearLayout", superclass).unwrap();
+    let mut decl = ClassDecl::new("PlyguiLinearLayout", superclass).unwrap();
 
-    decl.add_ivar::<*mut c_void>("nativeUiLinearLayout");
+    decl.add_ivar::<*mut c_void>(IVAR);
 
     RefClass(decl.register())
 }

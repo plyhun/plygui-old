@@ -10,11 +10,12 @@ use objc::declare::ClassDecl;
 use std::mem;
 use std::os::raw::c_void;
 
+pub const IVAR: &str = "plyguiButton";
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
-use {layout, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility};
+use {layout, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility, UiContainer};
 
 #[repr(C)]
 pub struct Button {
@@ -49,6 +50,12 @@ impl UiButton for Button {
 }
 
 impl UiControl for Button {
+	fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
+		None
+	}
+    fn is_container(&self) -> Option<&UiContainer> {
+    	None
+    }
     fn layout_params(&self) -> (layout::Params, layout::Params) {
         (self.base.layout_width, self.base.layout_height)
     }
@@ -66,7 +73,7 @@ impl UiControl for Button {
 
             if let Some(ref mut cb) = self.base.h_resize {
                 let object: &Object = mem::transmute(self.base.control);
-                let saved: *mut c_void = *object.get_ivar("nativeUiButton");
+                let saved: *mut c_void = *object.get_ivar(IVAR);
                 let mut button2: &mut Button = mem::transmute(saved);
                 (cb)(button2,
                      self.base.measured_size.0,
@@ -75,41 +82,59 @@ impl UiControl for Button {
         }
     }
     fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
-        unsafe {
-        	let mut label_size = (0, 0);
-	        let w = match self.base.layout_width {
-	            layout::Params::MatchParent => parent_width,
-	            layout::Params::Exact(w) => w,
-	            layout::Params::WrapContent => {
-	                if label_size.0 < 1 {
-	                    label_size = common::measure_string(self.label.as_ref());
-	                }
-	                label_size.0 as u16
-	            } 
-	        };
-	        let h = match self.base.layout_height {
-	            layout::Params::MatchParent => parent_height,
-	            layout::Params::Exact(h) => h,
-	            layout::Params::WrapContent => {
-	                if label_size.1 < 1 {
-	                    label_size = common::measure_string(self.label.as_ref());
-	                }
-	                label_size.1 as u16
-	            } 
-	        };
-	        let ret = (w, h);
-	        self.base.measured_size = ret;
-	        ret
-        }
+    	self.base.measured_size = match self.visibility() {
+    		Visibility::Gone => {
+    			(0, 0)
+    		},
+    		_ => {
+    			unsafe {
+    				let mut label_size = (0, 0);
+			        let w = match self.base.layout_width {
+			            layout::Params::MatchParent => parent_width,
+			            layout::Params::Exact(w) => w,
+			            layout::Params::WrapContent => {
+			                if label_size.0 < 1 {
+			                    label_size = common::measure_string(self.label.as_ref());
+			                }
+			                label_size.0 as u16
+			            } 
+			        };
+			        let h = match self.base.layout_height {
+			            layout::Params::MatchParent => parent_height,
+			            layout::Params::Exact(h) => h,
+			            layout::Params::WrapContent => {
+			                if label_size.1 < 1 {
+			                    label_size = common::measure_string(self.label.as_ref());
+			                }
+			                label_size.1 as u16
+			            } 
+			        };
+			        (w, h)
+    			}
+    		}
+    	};
+        self.base.measured_size
+    }
+    fn parent(&self) -> Option<&UiContainer> {
+    	self.base.parent()
+    }
+    fn parent_mut(&mut self) -> Option<&mut UiContainer> {
+    	self.base.parent_mut()
+    }
+    fn root(&self) -> Option<&UiContainer> {
+    	self.base.root()
+    }
+    fn root_mut(&mut self) -> Option<&mut UiContainer> {
+    	self.base.root_mut()
     }
 }
 
 impl UiMember for Button {
     fn set_visibility(&mut self, visibility: Visibility) {
-    	self.base.visibility = visibility;
+    	self.base.set_visibility(visibility);
     }
     fn visibility(&self) -> Visibility {
-    	self.base.visibility
+    	self.base.visibility()
     }
     fn size(&self) -> (u16, u16) {
         self.base.measured_size
@@ -123,6 +148,9 @@ impl UiMember for Button {
     }
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::Button(self)
+    }
+    fn id(&self) -> Id {
+    	self.base.id()
     }
 }
 
@@ -143,7 +171,7 @@ unsafe impl common::CocoaControl for Button {
         self.base.control.setTitle_(title);
         self.base.control.setBezelStyle_(NSBezelStyle::NSSmallSquareBezelStyle);
 
-        (&mut *self.base.control).set_ivar("nativeUiButton",
+        (&mut *self.base.control).set_ivar(IVAR,
                                            self as *mut _ as *mut ::std::os::raw::c_void);
     }
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
@@ -157,32 +185,32 @@ unsafe impl common::CocoaControl for Button {
 
 unsafe fn register_window_class() -> RefClass {
     let superclass = Class::get("NSButton").unwrap();
-    let mut decl = ClassDecl::new("NativeUiButton", superclass).unwrap();
+    let mut decl = ClassDecl::new("PlyguiButton", superclass).unwrap();
 
     decl.add_method(sel!(mouseDown:),
                     button_left_click as extern "C" fn(&Object, Sel, id));
     decl.add_method(sel!(rightMouseDown:),
                     button_right_click as extern "C" fn(&Object, Sel, id));
-    decl.add_ivar::<*mut c_void>("nativeUiButton");
+    decl.add_ivar::<*mut c_void>(IVAR);
 
     RefClass(decl.register())
 }
 
 extern "C" fn button_left_click(this: &Object, _: Sel, param: id) {
     unsafe {
-        let saved: *mut c_void = *this.get_ivar("nativeUiButton");
+    	let saved: *mut c_void = *this.get_ivar(IVAR);
         let button: &mut Button = mem::transmute(saved.clone());
+        msg_send![super(button.base.control, Class::get("NSButton").unwrap()), mouseDown: param];
         if let Some(ref mut cb) = button.h_left_clicked {
             let b2: &mut Button = mem::transmute(saved);
             (cb)(b2);
         }
-        msg_send![super(button.base.control, Class::get("NSButton").unwrap()), mouseDown: param];
     }
 }
 extern "C" fn button_right_click(this: &Object, _: Sel, param: id) {
     println!("right!");
     unsafe {
-        let saved: *mut c_void = *this.get_ivar("nativeUiButton");
+        let saved: *mut c_void = *this.get_ivar(IVAR);
         let button: &mut Button = mem::transmute(saved.clone());
         if let Some(ref mut cb) = button.h_right_clicked {
             let b2: &mut Button = mem::transmute(saved);

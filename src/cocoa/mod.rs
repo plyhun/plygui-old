@@ -11,6 +11,8 @@ mod layout_linear;
 
 pub mod common;
 
+pub type Id = cocoa::base::id;
+
 pub use self::application::Application;
 pub use self::window::Window;
 pub use self::button::Button;

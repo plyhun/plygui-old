@@ -1,4 +1,5 @@
 use super::*;
+use super::common::*;
 
 use self::cocoa::appkit::{NSWindow, NSRunningApplication, NSClosableWindowMask, NSResizableWindowMask, NSMiniaturizableWindowMask, NSTitledWindowMask, NSBackingStoreBuffered};
 use self::cocoa::foundation::{NSString, NSAutoreleasePool, NSRect, NSSize, NSPoint};
@@ -9,11 +10,9 @@ use objc::declare::ClassDecl;
 use std::mem;
 use std::os::raw::c_void;
 
-use {UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, Visibility};
+use {UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
 
-struct RefClass(*const Class);
-unsafe impl Sync for RefClass {}
-
+pub const IVAR: &str = "plyguiWindow";
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
@@ -21,13 +20,14 @@ lazy_static! {
 pub struct Window {
     window: id,
     container: id,
+    visibility: Visibility,
 
     child: Option<Box<UiControl>>,
     h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
 }
 
 impl Window {
-    pub(crate) fn new(app: id, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
+    pub(crate) fn new(title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
     	use self::cocoa::appkit::NSView;
     	
         unsafe {
@@ -53,15 +53,15 @@ impl Window {
             let mut window = Box::new(Window {
                 window: window,
                 container: view,
-
+				visibility: Visibility::Visible,
+				
                 child: None,
                 h_resize: None,
             });
 
             let delegate: *mut Object = msg_send!(WINDOW_CLASS.0, new);
-			(&mut *delegate).set_ivar("nativeUiWindow", window.as_mut() as *mut _ as *mut ::std::os::raw::c_void);
-			(&mut *delegate).set_ivar("nativeUiApplication", app as *mut _ as *mut ::std::os::raw::c_void);
-            window.window.setDelegate_(delegate);
+			(&mut *delegate).set_ivar(IVAR, window.as_mut() as *mut _ as *mut ::std::os::raw::c_void);
+			window.window.setDelegate_(delegate);
             
             window
         }
@@ -79,11 +79,11 @@ impl UiContainer for Window {
         unsafe {
             let mut old = self.child.take();
             if let Some(old) = old.as_mut() {
-                let mut wc = common::cast_uicontrol_to_cocoa_mut(old);
+                let mut wc = cast_uicontrol_to_cocoa_mut(old);
                 wc.on_removed_from_container(self);
             }
             if let Some(new) = child.as_mut() {
-                let mut wc = common::cast_uicontrol_to_cocoa_mut(new);
+                let mut wc = cast_uicontrol_to_cocoa_mut(new);
                 wc.on_added_to_container(self,0,0); //TODO padding
 				self.container.addSubview_(wc.base().control);
             }
@@ -92,20 +92,58 @@ impl UiContainer for Window {
             old
         }
     }
-    fn child(&self) -> Option<&Box<UiControl>> {
-        self.child.as_ref()
+    fn child(&self) -> Option<&UiControl> {
+        self.child.as_ref().map(|c|c.as_ref())
     }
-    fn child_mut(&mut self) -> Option<&mut Box<UiControl>> {
-        self.child.as_mut()
+    fn child_mut(&mut self) -> Option<&mut UiControl> {
+        //self.child.as_mut().map(|c|c.as_mut()) // WTF ??
+        if let Some(child) = self.child.as_mut() {
+        	Some(child.as_mut())
+        } else {
+        	None
+        }
     }
+	fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
+    	/*if self.id() == id_ {
+			return Some(self);
+		} else*/ if let Some(child) = self.child.as_mut() {
+			if let Some(c) = child.is_container_mut() {
+				return c.find_control_by_id_mut(id_);
+			}
+		} 
+		None
+    }
+	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+		/*if self.id() == id_ {
+			return Some(self);
+		} else*/ if let Some(child) = self.child.as_ref() {
+			if let Some(c) = child.is_container() {
+				return c.find_control_by_id(id_);
+			}
+		} 
+		None
+	} 
+	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+		None
+	}
+	fn is_multi(&self) -> Option<&UiMultiContainer> {
+		None
+	} 
 }
 
 impl UiMember for Window {
     fn set_visibility(&mut self, visibility: Visibility) {
-    	
+    	self.visibility = visibility;
+    	unsafe {
+    		if Visibility::Visible == visibility {
+	    		msg_send![self.window, setIsVisible:YES];
+	    	} else {
+	    		msg_send![self.window, setIsVisible:NO];
+	    	}
+    	}
     }
     fn visibility(&self) -> Visibility {
-    	Visibility::Visible //TODO
+    	self.visibility
     }
     fn size(&self) -> (u16, u16) {
         unsafe {
@@ -123,6 +161,9 @@ impl UiMember for Window {
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::Window(self)
     }
+    fn id(&self) -> Id {
+    	self.window
+    }
 }
 
 impl Drop for Window {
@@ -134,37 +175,29 @@ impl Drop for Window {
 	}
 }
 
-unsafe impl common::CocoaContainer for Window {
-	unsafe fn id(&self) -> id {
+unsafe impl CocoaContainer for Window {
+	unsafe fn cocoa_id(&self) -> id {
 		self.window
 	}
 }
 
 unsafe fn register_window_class() -> RefClass {
 	let superclass = Class::get("NSObject").unwrap();
-    let mut decl = ClassDecl::new("NativeUiWindowDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new("PlyguiWindowDelegate", superclass).unwrap();
 
 	decl.add_method(sel!(applicationShouldTerminateAfterLastWindowClosed:), application_should_terminate_after_last_window_closed as extern "C" fn(&Object, Sel, id) -> BOOL);
     decl.add_method(sel!(windowShouldClose:), window_should_close as extern "C" fn(&Object, Sel, id) -> BOOL);
     decl.add_method(sel!(windowDidResize:), window_did_resize as extern "C" fn(&Object, Sel, id));
     decl.add_method(sel!(windowDidChangeScreen:), window_did_change_screen as extern "C" fn(&Object, Sel, id));
-    decl.add_method(sel!(windowWillClose:), window_will_close as extern "C" fn(&Object, Sel, id));
+    //decl.add_method(sel!(windowWillClose:), window_will_close as extern "C" fn(&Object, Sel, id));
 
     //decl.add_method(sel!(windowDidBecomeKey:), window_did_become_key as extern "C" fn(&Object, Sel, id));
     //decl.add_method(sel!(windowDidResignKey:), window_did_resign_key as extern "C" fn(&Object, Sel, id));
 
-    decl.add_ivar::<*mut c_void>("nativeUiWindow");
-    decl.add_ivar::<*mut c_void>("nativeUiApplication");
+    decl.add_ivar::<*mut c_void>(IVAR);
+    //decl.add_ivar::<*mut c_void>("plyguiApplication");
 
     RefClass(decl.register())
-}
-
-extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
-	unsafe {
-		let saved: *mut c_void = *this.get_ivar("nativeUiApplication");
-        let app: &mut Application = mem::transmute(saved.clone());
-        app.on_window_closed();
-	}
 }
 
 extern "C" fn application_should_terminate_after_last_window_closed(_: &Object, _: Sel, _: id) -> BOOL {
@@ -173,7 +206,7 @@ extern "C" fn application_should_terminate_after_last_window_closed(_: &Object, 
 
 extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
     unsafe {
-        let saved: *mut c_void = *this.get_ivar("nativeUiWindow");
+        let saved: *mut c_void = *this.get_ivar(IVAR);
         let window: &mut Window = mem::transmute(saved.clone());
         let size = window.window.contentView().frame().size;
             
@@ -191,7 +224,7 @@ extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
 
 extern "C" fn window_did_change_screen(this: &Object, _: Sel, _: id) {
     unsafe {
-        let saved: *mut c_void = *this.get_ivar("nativeUiWindow");
+        let saved: *mut c_void = *this.get_ivar(IVAR);
         let window: &mut Window = mem::transmute(saved.clone());
         if let Some(ref mut cb) = window.h_resize {
         	let size = window.window.contentView().frame().size;
