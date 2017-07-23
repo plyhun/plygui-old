@@ -1,7 +1,7 @@
 use super::*;
 use super::common::*;
 
-use {UiRole, UiWindow, UiControl, UiMember, UiContainer};
+use {UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
 
 use std::{ptr, mem, str};
 use std::os::raw::c_void;
@@ -16,12 +16,13 @@ lazy_static! {
 #[repr(C)]
 pub struct Window {
     hwnd: winapi::HWND,
+    visibility: Visibility,
     child: Option<Box<UiControl>>,
     h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
 }
 
 impl Window {
-    pub fn new(title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
+    pub(crate) fn new(title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
         unsafe {
             let mut rect = winapi::RECT {
                 left: 0,
@@ -42,6 +43,7 @@ impl Window {
                                      hwnd: 0 as winapi::HWND,
                                      child: None,
                                      h_resize: None,
+                                     visibility: Visibility::Visible,
                                  });
 
             if INSTANCE as usize == 0 {
@@ -65,10 +67,7 @@ impl Window {
             w
         }
     }
-}
-
-impl UiWindow for Window {
-    fn start(&mut self) {
+    pub(crate) fn start(&mut self) {
         loop {
             unsafe {
                 let mut msg: winapi::MSG = mem::zeroed();
@@ -81,6 +80,10 @@ impl UiWindow for Window {
             }
         }
     }
+}
+
+impl UiWindow for Window {
+
 }
 
 impl UiContainer for Window {
@@ -101,25 +104,46 @@ impl UiContainer for Window {
             old
         }
     }
-	fn child(&self) -> Option<&Box<UiControl>> {
-		self.child.as_ref()
+    fn child(&self) -> Option<&UiControl> {
+        self.child.as_ref().map(|c|c.as_ref())
+    }
+    fn child_mut(&mut self) -> Option<&mut UiControl> {
+        //self.child.as_mut().map(|c|c.as_mut()) // WTF ??
+        if let Some(child) = self.child.as_mut() {
+        	Some(child.as_mut())
+        } else {
+        	None
+        }
+    }
+	fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
+    	/*if self.id() == id_ {
+			return Some(self);
+		} else*/ if let Some(child) = self.child.as_mut() {
+			if let Some(c) = child.is_container_mut() {
+				return c.find_control_by_id_mut(id_);
+			}
+		} 
+		None
+    }
+	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+		/*if self.id() == id_ {
+			return Some(self);
+		} else*/ if let Some(child) = self.child.as_ref() {
+			if let Some(c) = child.is_container() {
+				return c.find_control_by_id(id_);
+			}
+		} 
+		None
+	} 
+	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+		None
 	}
-	fn child_mut(&mut self) -> Option<&mut Box<UiControl>> {
-		self.child.as_mut()
-	}
+	fn is_multi(&self) -> Option<&UiMultiContainer> {
+		None
+	} 
 }
 
 impl UiMember for Window {
-    fn show(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.hwnd, winapi::SW_SHOW);
-        }
-    }
-    fn hide(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.hwnd, winapi::SW_HIDE);
-        }
-    }
     fn size(&self) -> (u16, u16) {
     	let rect = unsafe { window_rect(self.hwnd) };
     	((rect.right-rect.left) as u16, (rect.bottom-rect.top) as u16)
@@ -129,15 +153,30 @@ impl UiMember for Window {
         self.h_resize = handler;
     }
 
-    fn role<'a>(&'a mut self) -> UiRole<'a> {
+    fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::Window(self)
     }
+	fn set_visibility(&mut self, visibility: Visibility) {
+    	self.visibility = visibility;
+    	unsafe {
+    		user32::ShowWindow(self.hwnd, if self.visibility == Visibility::Visible { winapi::SW_SHOW } else { winapi::SW_HIDE });
+    	}
+    }
+    fn visibility(&self) -> Visibility {
+    	self.visibility
+    }
+    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
+        UiRoleMut::Window(self)
+    }
+	fn id(&self) -> Id {
+		self.hwnd
+	}
 }
 
 impl Drop for Window {
     fn drop(&mut self) {
         self.set_child(None);
-        self.hide();
+        self.set_visibility(Visibility::Gone);
         destroy_hwnd(self.hwnd, 0, None);
     }
 }

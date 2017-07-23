@@ -1,11 +1,11 @@
 use super::*;
 
 use std::{ptr, mem, str};
-//use std::os::raw::c_void;
+use std::os::raw::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::ffi::OsStr;
 
-use {layout, UiContainer, UiMember, UiControl, UiRole};
+use {layout, UiContainer, UiMember, UiControl, UiRoleMut, Visibility};
 
 pub static mut INSTANCE: winapi::HINSTANCE = 0 as winapi::HINSTANCE;
 
@@ -18,6 +18,8 @@ pub struct WindowsControlBase {
     pub measured_size: (u16, u16),
 
     pub h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
+    
+    visibility: Visibility,
 }
 
 impl Default for WindowsControlBase {
@@ -29,8 +31,46 @@ impl Default for WindowsControlBase {
             layout_width: layout::Params::MatchParent,
             layout_height: layout::Params::WrapContent,
             measured_size: (0, 0),
+            visibility: Visibility::Visible,
         }
     }
+}
+impl WindowsControlBase {
+	pub fn set_visibility(&mut self, visibility: Visibility) {
+    	self.visibility = visibility;
+    	unsafe {
+    		user32::ShowWindow(self.hwnd, if self.visibility == Visibility::Visible { winapi::SW_SHOW } else { winapi::SW_HIDE });
+    	}
+    }
+    pub fn visibility(&self) -> Visibility {
+    	self.visibility
+    }
+    pub fn parent(&self) -> Option<&UiContainer> {
+    	unsafe {
+			let parent = user32::GetParent(self.hwnd);
+			if parent == self.hwnd {
+				return None;
+			}
+			
+			let parent = user32::GetWindowLongPtrW(parent, winapi::GWLP_USERDATA) as *const c_void;
+			None
+    	}
+    }
+    pub fn parent_mut(&mut self) -> Option<&mut UiContainer> {
+    	unsafe {
+			None
+    	}
+    }
+    pub fn root(&self) -> Option<&UiContainer> {
+    	unsafe {
+			None
+    	}
+    }
+    pub fn root_mut(&mut self) -> Option<&mut UiContainer> {
+    	unsafe {
+			None
+    	}
+    }      
 }
 
 pub unsafe trait WindowsControl: UiMember {
@@ -122,16 +162,16 @@ pub unsafe fn window_rect(hwnd: winapi::HWND) -> winapi::RECT {
 
 pub unsafe fn cast_uicontrol_to_windows(input: &mut Box<UiControl>) -> &mut WindowsControl {
     use std::ops::DerefMut;
-    match input.role() {
-        UiRole::Button(_) => {
+    match input.role_mut() {
+        UiRoleMut::Button(_) => {
             let a: &mut Box<button::Button> = mem::transmute(input);
             a.deref_mut()
         }
-        UiRole::LinearLayout(_) => {
+        UiRoleMut::LinearLayout(_) => {
             let a: &mut Box<layout_linear::LinearLayout> = mem::transmute(input);
             a.deref_mut()
         }
-        UiRole::Window(_) => {
+        UiRoleMut::Window(_) => {
             panic!("Window as a container child is impossible!");
         }
     }

@@ -21,18 +21,18 @@ pub use inner::{Id, Application, Window, Button, LinearLayout};
 
 pub use std::fmt::{Result as FmtResult, Formatter, Debug};
 
-pub trait UiApplication: Drop {
+pub trait UiApplication {
 	fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window>;
 	fn name(&self) -> &str;
 	fn start(&mut self);
 }
 
 pub trait UiMember {
-    fn set_visibility(&mut self, visibility: Visibility);
-    fn visibility(&self) -> Visibility;
     fn size(&self) -> (u16, u16);
     fn on_resize(&mut self, Option<Box<FnMut(&mut UiMember, u16, u16)>>);
     
+    fn set_visibility(&mut self, visibility: Visibility);
+    fn visibility(&self) -> Visibility;
     fn role<'a>(&'a self) -> UiRole<'a>;
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
     fn id(&self) -> Id;

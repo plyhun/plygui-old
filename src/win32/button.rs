@@ -1,6 +1,6 @@
 use super::*;
 
-use {layout, UiRole, UiControl, UiButton, UiMember};
+use {layout, UiRole, UiRoleMut, Visibility, UiControl, UiButton, UiMember, UiContainer};
 
 use std::{ptr, mem, str};
 use std::os::raw::c_void;
@@ -103,19 +103,28 @@ impl UiControl for Button {
 	        ret
         }
     }
+    fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
+    	None
+    }
+    fn is_container(&self) -> Option<&UiContainer> {
+    	None
+    }
+    
+    fn parent(&self) -> Option<&UiContainer> {
+    	None
+    }
+    fn parent_mut(&mut self) -> Option<&mut UiContainer> {
+    	None
+    }
+    fn root(&self) -> Option<&UiContainer> {
+    	None
+    }
+    fn root_mut(&mut self) -> Option<&mut UiContainer> {
+    	None
+    }
 }
 
 impl UiMember for Button {
-    fn show(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.base.hwnd, winapi::SW_SHOW);
-        }
-    }
-    fn hide(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.base.hwnd, winapi::SW_HIDE);
-        }
-    }
     fn size(&self) -> (u16, u16) {
         let rect = unsafe { common::window_rect(self.base.hwnd) };
         ((rect.right - rect.left) as u16, (rect.bottom - rect.top) as u16)
@@ -125,14 +134,27 @@ impl UiMember for Button {
         self.base.h_resize = handler;
     }
 
-    fn role<'a>(&'a mut self) -> UiRole<'a> {
+    fn set_visibility(&mut self, visibility: Visibility) {
+    	self.base.set_visibility(visibility);
+    }
+    fn visibility(&self) -> Visibility {
+    	self.base.visibility()
+    }
+    
+    fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::Button(self)
+    }
+    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
+    	UiRoleMut::Button(self)
+    }
+    fn id(&self) -> Id {
+    	self.base.hwnd
     }
 }
 
 impl Drop for Button {
     fn drop(&mut self) {
-        self.hide();
+        self.set_visibility(Visibility::Gone);
         common::destroy_hwnd(self.base.hwnd, 0, None);
     }
 }

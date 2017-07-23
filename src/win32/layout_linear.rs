@@ -1,7 +1,7 @@
 use super::*;
 use super::common::*;
 
-use {layout, UiRole, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout};
+use {layout, UiRole, UiRoleMut, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout, Visibility};
 
 use std::{ptr, mem};
 use std::os::raw::c_void;
@@ -31,15 +31,15 @@ impl LinearLayout {
 }
 
 impl UiMember for LinearLayout {
-    fn show(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.base.hwnd, winapi::SW_SHOW);
-        }
+    fn set_visibility(&mut self, visibility: Visibility) {
+    	self.base.set_visibility(visibility);
     }
-    fn hide(&mut self) {
-        unsafe {
-            user32::ShowWindow(self.base.hwnd, winapi::SW_HIDE);
-        }
+    fn visibility(&self) -> Visibility {
+    	self.base.visibility()
+    }
+    
+    fn id(&self) -> Id {
+    	self.base.hwnd
     }
     fn size(&self) -> (u16, u16) {
         let rect = unsafe { window_rect(self.base.hwnd) };
@@ -50,8 +50,11 @@ impl UiMember for LinearLayout {
         self.base.h_resize = handler;
     }
 
-    fn role<'a>(&'a mut self) -> UiRole<'a> {
+    fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::LinearLayout(self)
+    }
+    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
+        UiRoleMut::LinearLayout(self)
     }
 }
 
@@ -110,6 +113,25 @@ impl UiControl for LinearLayout {
         self.base.measured_size = ret;
         ret
     }
+    fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
+    	Some(self)
+    }
+    fn is_container(&self) -> Option<&UiContainer> {
+    	Some(self)
+    }
+    
+    fn parent(&self) -> Option<&UiContainer> {
+    	None
+    }
+    fn parent_mut(&mut self) -> Option<&mut UiContainer> {
+    	None
+    }
+    fn root(&self) -> Option<&UiContainer> {
+    	None
+    }
+    fn root_mut(&mut self) -> Option<&mut UiContainer> {
+    	None
+    }
 }
 
 impl UiContainer for LinearLayout {
@@ -124,12 +146,57 @@ impl UiContainer for LinearLayout {
         };
         old
     }
-    fn child(&self) -> Option<&Box<UiControl>> {
-        self.children.get(0)
+    fn child(&self) -> Option<&UiControl> {
+        self.children.get(0).map(|c|c.as_ref())
     }
-    fn child_mut(&mut self) -> Option<&mut Box<UiControl>> {
-        self.children.get_mut(0)
+    fn child_mut(&mut self) -> Option<&mut UiControl> {
+        //self.children.get_mut(0).map(|c|c.as_mut()) // WTF??
+        if self.children.len() > 0 {
+        	Some(self.children[0].as_mut())
+        } else {
+        	None
+        }
     }
+    fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
+    	if self.id() == id_ {
+    		return Some(self);
+    	}
+    	for child in self.children.as_mut_slice() {
+    		if child.id() == id_ {
+    			return Some(child.as_mut());
+    		} else if let Some(c) = child.is_container_mut() {
+    			let ret = c.find_control_by_id_mut(id_);
+    			if ret.is_none() {
+    				continue;
+    			}
+    			return ret;
+    		}
+    	}
+    	None
+    }
+	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+		if self.id() == id_ {
+    		return Some(self);
+    	}
+    	for child in self.children.as_slice() {
+    		if child.id() == id_ {
+    			return Some(child.as_ref());
+    		} else if let Some(c) = child.is_container() {
+    			let ret = c.find_control_by_id(id_);
+    			if ret.is_none() {
+    				continue;
+    			}
+    			return ret;
+    		}
+    	}
+    	None
+	}
+	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+		Some(self)
+	}
+	fn is_multi(&self) -> Option<&UiMultiContainer> {
+		Some(self)
+	}
 }
 
 impl UiMultiContainer for LinearLayout {
