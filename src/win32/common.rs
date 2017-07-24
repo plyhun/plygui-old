@@ -5,7 +5,7 @@ use std::os::raw::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::ffi::OsStr;
 
-use {layout, UiContainer, UiMember, UiControl, UiRoleMut, Visibility};
+use {development, layout, UiContainer, UiMember, UiControl, UiRoleMut, Visibility};
 
 pub static mut INSTANCE: winapi::HINSTANCE = 0 as winapi::HINSTANCE;
 
@@ -18,7 +18,7 @@ pub struct WindowsControlBase {
     pub measured_size: (u16, u16),
 
     pub h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
-    
+
     visibility: Visibility,
 }
 
@@ -36,41 +36,114 @@ impl Default for WindowsControlBase {
     }
 }
 impl WindowsControlBase {
-	pub fn set_visibility(&mut self, visibility: Visibility) {
-    	self.visibility = visibility;
-    	unsafe {
-    		user32::ShowWindow(self.hwnd, if self.visibility == Visibility::Visible { winapi::SW_SHOW } else { winapi::SW_HIDE });
-    	}
+    pub fn set_visibility(&mut self, visibility: Visibility) {
+        self.visibility = visibility;
+        unsafe {
+            user32::ShowWindow(self.hwnd,
+                               if self.visibility == Visibility::Invisible {
+                                   winapi::SW_HIDE
+                               } else {
+                                   winapi::SW_SHOW
+                               });
+        }
     }
     pub fn visibility(&self) -> Visibility {
-    	self.visibility
+        self.visibility
     }
     pub fn parent(&self) -> Option<&UiContainer> {
-    	unsafe {
-			let parent = user32::GetParent(self.hwnd);
-			if parent == self.hwnd {
-				return None;
-			}
-			
-			let parent = user32::GetWindowLongPtrW(parent, winapi::GWLP_USERDATA) as *const c_void;
-			None
-    	}
+        unsafe {
+            let parent_hwnd = user32::GetParent(self.hwnd);
+            if parent_hwnd == self.hwnd {
+                return None;
+            }
+
+            let parent_ptr = user32::GetWindowLongPtrW(parent_hwnd, winapi::GWLP_USERDATA);
+            let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(parent_hwnd).as_ref());
+            match parent_class.as_str() {
+                development::CLASS_ID_LAYOUT_LINEAR => {
+                    let ll: &layout_linear::LinearLayout = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(ll);
+                }
+                development::CLASS_ID_WINDOW => {
+                    let w: &window::Window = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(w);
+                }
+                _ => None,
+            }
+        }
     }
     pub fn parent_mut(&mut self) -> Option<&mut UiContainer> {
-    	unsafe {
-			None
-    	}
+        unsafe {
+            let parent_hwnd = user32::GetParent(self.hwnd);
+            if parent_hwnd == self.hwnd {
+                return None;
+            }
+
+            let parent_ptr = user32::GetWindowLongPtrW(parent_hwnd, winapi::GWLP_USERDATA);
+            let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(parent_hwnd).as_ref());
+            match parent_class.as_str() {
+                development::CLASS_ID_LAYOUT_LINEAR => {
+                    let ll: &mut layout_linear::LinearLayout = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(ll);
+                }
+                development::CLASS_ID_WINDOW => {
+                    let w: &mut window::Window = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(w);
+                }
+                _ => None,
+            }
+        }
     }
     pub fn root(&self) -> Option<&UiContainer> {
-    	unsafe {
-			None
-    	}
+        unsafe {
+            let parent_hwnd = user32::GetAncestor(self.hwnd, 2); //GA_ROOT
+            if parent_hwnd == self.hwnd {
+                return None;
+            }
+
+            let parent_ptr = user32::GetWindowLongPtrW(parent_hwnd, winapi::GWLP_USERDATA);
+            let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(parent_hwnd).as_ref());
+            match parent_class.as_str() {
+                development::CLASS_ID_LAYOUT_LINEAR => {
+                    let ll: &layout_linear::LinearLayout = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(ll);
+                }
+                development::CLASS_ID_WINDOW => {
+                    let w: &window::Window = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(w);
+                }
+                _ => {
+                    println!("unknown {}", parent_class);
+                    None
+                }
+            }
+        }
     }
     pub fn root_mut(&mut self) -> Option<&mut UiContainer> {
-    	unsafe {
-			None
-    	}
-    }      
+        unsafe {
+            let parent_hwnd = user32::GetAncestor(self.hwnd, 2); //GA_ROOT
+            if parent_hwnd == self.hwnd {
+                return None;
+            }
+
+            let parent_ptr = user32::GetWindowLongPtrW(parent_hwnd, winapi::GWLP_USERDATA);
+            let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(parent_hwnd).as_ref());
+            match parent_class.as_str() {
+                development::CLASS_ID_LAYOUT_LINEAR => {
+                    let ll: &mut layout_linear::LinearLayout = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(ll);
+                }
+                development::CLASS_ID_WINDOW => {
+                    let w: &mut window::Window = mem::transmute(parent_ptr as *mut c_void);
+                    return Some(w);
+                }
+                _ => {
+                    println!("unknown {}", parent_class);
+                    None
+                }
+            }
+        }
+    }
 }
 
 pub unsafe trait WindowsControl: UiMember {
@@ -81,6 +154,14 @@ pub unsafe trait WindowsControl: UiMember {
 
 pub unsafe trait WindowsContainer: UiContainer + UiMember {
     unsafe fn hwnd(&self) -> winapi::HWND;
+}
+
+pub unsafe fn get_class_name_by_hwnd(hwnd: winapi::HWND) -> Vec<u16> {
+    let mut max_id = 256;
+    let mut name = vec![0u16; max_id];
+    max_id = user32::GetClassNameW(hwnd, name.as_mut_slice().as_ptr(), max_id as i32) as usize;
+    name.truncate(max_id);
+    name
 }
 
 pub unsafe fn create_control_hwnd(x: i32,
@@ -184,14 +265,15 @@ pub unsafe fn log_error() {
     }
 
     let mut string = vec![0u16; 127];
-    kernel32::FormatMessageW(
-        winapi::FORMAT_MESSAGE_FROM_SYSTEM |
-        winapi::FORMAT_MESSAGE_IGNORE_INSERTS,
-        ptr::null_mut(),
-        error,
-        winapi::LANG_SYSTEM_DEFAULT as u32,
-        string.as_mut_ptr(),
-        string.len() as u32, ptr::null_mut() );
+    kernel32::FormatMessageW(winapi::FORMAT_MESSAGE_FROM_SYSTEM | winapi::FORMAT_MESSAGE_IGNORE_INSERTS,
+                             ptr::null_mut(),
+                             error,
+                             winapi::LANG_SYSTEM_DEFAULT as u32,
+                             string.as_mut_ptr(),
+                             string.len() as u32,
+                             ptr::null_mut());
 
-    println!("Last error #{}: {}", error, String::from_utf16_lossy(&string));
+    println!("Last error #{}: {}",
+             error,
+             String::from_utf16_lossy(&string));
 }

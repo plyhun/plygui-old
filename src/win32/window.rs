@@ -1,7 +1,7 @@
 use super::*;
 use super::common::*;
 
-use {UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
+use {development, UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
 
 use std::{ptr, mem, str};
 use std::os::raw::c_void;
@@ -22,7 +22,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub(crate) fn new(title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window> {
+    pub(crate) fn new(
+                      title: &str,
+                      width: u16,
+                      height: u16,
+                      has_menu: bool)
+                      -> Box<Window> {
         unsafe {
             let mut rect = winapi::RECT {
                 left: 0,
@@ -82,12 +87,10 @@ impl Window {
     }
 }
 
-impl UiWindow for Window {
-
-}
+impl UiWindow for Window {}
 
 impl UiContainer for Window {
-	fn set_child(&mut self, mut child: Option<Box<UiControl>>) -> Option<Box<UiControl>> {
+    fn set_child(&mut self, mut child: Option<Box<UiControl>>) -> Option<Box<UiControl>> {
         unsafe {
             let mut old = self.child.take();
             if let Some(old) = old.as_mut() {
@@ -96,7 +99,7 @@ impl UiContainer for Window {
             }
             if let Some(new) = child.as_mut() {
                 let mut wc = common::cast_uicontrol_to_windows(new);
-                wc.on_added_to_container(self,0,0); //TODO padding
+                wc.on_added_to_container(self, 0, 0); //TODO padding
 
             }
             self.child = child;
@@ -105,50 +108,52 @@ impl UiContainer for Window {
         }
     }
     fn child(&self) -> Option<&UiControl> {
-        self.child.as_ref().map(|c|c.as_ref())
+        self.child.as_ref().map(|c| c.as_ref())
     }
     fn child_mut(&mut self) -> Option<&mut UiControl> {
         //self.child.as_mut().map(|c|c.as_mut()) // WTF ??
         if let Some(child) = self.child.as_mut() {
-        	Some(child.as_mut())
+            Some(child.as_mut())
         } else {
-        	None
+            None
         }
     }
-	fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
-    	/*if self.id() == id_ {
+    fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
+        /*if self.id() == id_ {
 			return Some(self);
-		} else*/ if let Some(child) = self.child.as_mut() {
-			if let Some(c) = child.is_container_mut() {
-				return c.find_control_by_id_mut(id_);
-			}
-		} 
-		None
+		} else*/
+        if let Some(child) = self.child.as_mut() {
+            if let Some(c) = child.is_container_mut() {
+                return c.find_control_by_id_mut(id_);
+            }
+        }
+        None
     }
-	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
-		/*if self.id() == id_ {
+    fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+        /*if self.id() == id_ {
 			return Some(self);
-		} else*/ if let Some(child) = self.child.as_ref() {
-			if let Some(c) = child.is_container() {
-				return c.find_control_by_id(id_);
-			}
-		} 
-		None
-	} 
-	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
-		None
-	}
-	fn is_multi(&self) -> Option<&UiMultiContainer> {
-		None
-	} 
+		} else*/
+        if let Some(child) = self.child.as_ref() {
+            if let Some(c) = child.is_container() {
+                return c.find_control_by_id(id_);
+            }
+        }
+        None
+    }
+    fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+        None
+    }
+    fn is_multi(&self) -> Option<&UiMultiContainer> {
+        None
+    }
 }
 
 impl UiMember for Window {
     fn size(&self) -> (u16, u16) {
-    	let rect = unsafe { window_rect(self.hwnd) };
-    	((rect.right-rect.left) as u16, (rect.bottom-rect.top) as u16)
-    } 
-    
+        let rect = unsafe { window_rect(self.hwnd) };
+        ((rect.right - rect.left) as u16, (rect.bottom - rect.top) as u16)
+    }
+
     fn on_resize(&mut self, handler: Option<Box<FnMut(&mut UiMember, u16, u16)>>) {
         self.h_resize = handler;
     }
@@ -156,21 +161,26 @@ impl UiMember for Window {
     fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::Window(self)
     }
-	fn set_visibility(&mut self, visibility: Visibility) {
-    	self.visibility = visibility;
-    	unsafe {
-    		user32::ShowWindow(self.hwnd, if self.visibility == Visibility::Visible { winapi::SW_SHOW } else { winapi::SW_HIDE });
-    	}
+    fn set_visibility(&mut self, visibility: Visibility) {
+        self.visibility = visibility;
+        unsafe {
+            user32::ShowWindow(self.hwnd,
+                               if self.visibility == Visibility::Visible {
+                                   winapi::SW_SHOW
+                               } else {
+                                   winapi::SW_HIDE
+                               });
+        }
     }
     fn visibility(&self) -> Visibility {
-    	self.visibility
+        self.visibility
     }
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::Window(self)
     }
-	fn id(&self) -> Id {
-		self.hwnd
-	}
+    fn id(&self) -> Id {
+        self.hwnd
+    }
 }
 
 impl Drop for Window {
@@ -188,7 +198,7 @@ unsafe impl WindowsContainer for Window {
 }
 
 unsafe fn register_window_class() -> Vec<u16> {
-    let class_name = OsStr::new("NativeUiWindowClass")
+    let class_name = OsStr::new(development::CLASS_ID_WINDOW)
         .encode_wide()
         .chain(Some(0).into_iter())
         .collect::<Vec<_>>();
@@ -226,12 +236,12 @@ unsafe extern "system" fn handler(hwnd: winapi::HWND, msg: winapi::UINT, wparam:
             let width = lparam as u16;
             let height = (lparam >> 16) as u16;
             let mut w: &mut window::Window = mem::transmute(ww);
-            
+
             if let Some(ref mut child) = w.child {
-            	child.measure(width, height);
-            	child.draw(0,0); //TODO padding
+                child.measure(width, height);
+                child.draw(0, 0); //TODO padding
             }
-            
+
             if let Some(ref mut cb) = w.h_resize {
                 let w2: &mut Window = mem::transmute(user32::GetWindowLongPtrW(hwnd, winapi::GWLP_USERDATA));
                 (cb)(w2, width, height);

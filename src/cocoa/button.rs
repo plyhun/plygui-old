@@ -31,11 +31,11 @@ pub struct Button {
 impl Button {
     pub fn new(label: &str) -> Box<Button> {
         Box::new(Button {
-            base: Default::default(),
-            label: label.to_owned(),
-            h_left_clicked: None,
-            h_right_clicked: None,
-        })
+                     base: Default::default(),
+                     label: label.to_owned(),
+                     h_left_clicked: None,
+                     h_right_clicked: None,
+                 })
     }
 }
 
@@ -52,11 +52,11 @@ impl UiButton for Button {
 }
 
 impl UiControl for Button {
-	fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
-		None
-	}
+    fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
+        None
+    }
     fn is_container(&self) -> Option<&UiContainer> {
-    	None
+        None
     }
     fn layout_params(&self) -> (layout::Params, layout::Params) {
         (self.base.layout_width, self.base.layout_height)
@@ -84,63 +84,59 @@ impl UiControl for Button {
         }
     }
     fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
-    	self.base.measured_size = match self.visibility() {
-    		Visibility::Gone => {
-    			(0, 0)
-    		},
-    		_ => {
-    			unsafe {
-    				let mut label_size = (0, 0);
-			        let w = match self.base.layout_width {
-			            layout::Params::MatchParent => parent_width,
-			            layout::Params::Exact(w) => w,
-			            layout::Params::WrapContent => {
-			                if label_size.0 < 1 {
-			                    label_size = common::measure_string(self.label.as_ref());
-			                    label_size.0 += PADDING;
-			                    label_size.1 += PADDING;
-			                }
-			                label_size.0 as u16
-			            } 
-			        };
-			        let h = match self.base.layout_height {
-			            layout::Params::MatchParent => parent_height,
-			            layout::Params::Exact(h) => h,
-			            layout::Params::WrapContent => {
-			                if label_size.1 < 1 {
-			                    label_size = common::measure_string(self.label.as_ref());
-			                    label_size.0 += PADDING;
-			                    label_size.1 += PADDING;
-			                }
-			                label_size.1 as u16
-			            } 
-			        };
-			        (w, h)
-    			}
-    		}
-    	};
+        self.base.measured_size = match self.visibility() {
+            Visibility::Gone => (0, 0),
+            _ => unsafe {
+                let mut label_size = (0, 0);
+                let w = match self.base.layout_width {
+                    layout::Params::MatchParent => parent_width,
+                    layout::Params::Exact(w) => w,
+                    layout::Params::WrapContent => {
+                        if label_size.0 < 1 {
+                            label_size = common::measure_string(self.label.as_ref());
+                            label_size.0 += PADDING;
+                            label_size.1 += PADDING;
+                        }
+                        label_size.0 as u16
+                    } 
+                };
+                let h = match self.base.layout_height {
+                    layout::Params::MatchParent => parent_height,
+                    layout::Params::Exact(h) => h,
+                    layout::Params::WrapContent => {
+                        if label_size.1 < 1 {
+                            label_size = common::measure_string(self.label.as_ref());
+                            label_size.0 += PADDING;
+                            label_size.1 += PADDING;
+                        }
+                        label_size.1 as u16
+                    } 
+                };
+                (w, h)
+            },
+        };
         self.base.measured_size
     }
     fn parent(&self) -> Option<&UiContainer> {
-    	self.base.parent()
+        self.base.parent()
     }
     fn parent_mut(&mut self) -> Option<&mut UiContainer> {
-    	self.base.parent_mut()
+        self.base.parent_mut()
     }
     fn root(&self) -> Option<&UiContainer> {
-    	self.base.root()
+        self.base.root()
     }
     fn root_mut(&mut self) -> Option<&mut UiContainer> {
-    	self.base.root_mut()
+        self.base.root_mut()
     }
 }
 
 impl UiMember for Button {
     fn set_visibility(&mut self, visibility: Visibility) {
-    	self.base.set_visibility(visibility);
+        self.base.set_visibility(visibility);
     }
     fn visibility(&self) -> Visibility {
-    	self.base.visibility()
+        self.base.visibility()
     }
     fn size(&self) -> (u16, u16) {
         self.base.measured_size
@@ -156,7 +152,7 @@ impl UiMember for Button {
         UiRoleMut::Button(self)
     }
     fn id(&self) -> Id {
-    	self.base.id()
+        self.base.id()
     }
 }
 
@@ -167,7 +163,7 @@ unsafe impl common::CocoaControl for Button {
 
         let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
                                NSSize::new(w as f64, h as f64));
-        
+
         let base: id = msg_send![WINDOW_CLASS.0, alloc];
         let base: id = msg_send![base, initWithFrame: rect];
 
@@ -175,14 +171,15 @@ unsafe impl common::CocoaControl for Button {
 
         let title = NSString::alloc(cocoa::base::nil).init_str(self.label.as_ref());
         self.base.control.setTitle_(title);
-        self.base.control.setBezelStyle_(NSBezelStyle::NSSmallSquareBezelStyle);
+        self.base
+            .control
+            .setBezelStyle_(NSBezelStyle::NSSmallSquareBezelStyle);
 
-        (&mut *self.base.control).set_ivar(IVAR,
-                                           self as *mut _ as *mut ::std::os::raw::c_void);
+        (&mut *self.base.control).set_ivar(IVAR, self as *mut _ as *mut ::std::os::raw::c_void);
         msg_send![title, release];
     }
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
-    	self.base.on_removed_from_container();
+        self.base.on_removed_from_container();
     }
 
     unsafe fn base(&mut self) -> &mut common::CocoaControlBase {
@@ -205,7 +202,7 @@ unsafe fn register_window_class() -> RefClass {
 
 extern "C" fn button_left_click(this: &Object, _: Sel, param: id) {
     unsafe {
-    	let saved: *mut c_void = *this.get_ivar(IVAR);
+        let saved: *mut c_void = *this.get_ivar(IVAR);
         let button: &mut Button = mem::transmute(saved.clone());
         msg_send![super(button.base.control, Class::get("NSButton").unwrap()), mouseDown: param];
         if let Some(ref mut cb) = button.h_left_clicked {

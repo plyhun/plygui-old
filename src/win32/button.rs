@@ -8,7 +8,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::ffi::OsStr;
 
 lazy_static! {
-	static ref WINDOW_CLASS: Vec<u16> = OsStr::new("button")
+	pub static ref WINDOW_CLASS: Vec<u16> = OsStr::new("button")
         .encode_wide()
         .chain(Some(0).into_iter())
         .collect::<Vec<_>>();
@@ -47,8 +47,8 @@ impl UiControl for Button {
         (self.base.layout_width, self.base.layout_height)
     }
     fn set_layout_params(&mut self, wp: layout::Params, hp: layout::Params) {
-    	self.base.layout_width = wp;
-    	self.base.layout_height = hp;
+        self.base.layout_width = wp;
+        self.base.layout_height = hp;
     }
     fn draw(&mut self, x: u16, y: u16) {
         unsafe {
@@ -62,65 +62,69 @@ impl UiControl for Button {
         }
     }
     fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
-        unsafe {
-        	let mut label_size: winapi::SIZE = mem::zeroed();
-	        let w = match self.base.layout_width {
-	            layout::Params::MatchParent => parent_width,
-	            layout::Params::Exact(w) => w,
-	            layout::Params::WrapContent => {
-	                if label_size.cx < 1 {
-	                    let label = OsStr::new(self.label.as_str())
-	                        .encode_wide()
-	                        .chain(Some(0).into_iter())
-	                        .collect::<Vec<_>>();
-	                    gdi32::GetTextExtentPointW(user32::GetDC(self.base.hwnd),
-	                                               label.as_ptr(),
-	                                               self.label.len() as i32,
-	                                               &mut label_size);
-	                }
-	                label_size.cx as u16
-	            } 
-	        };
-	        let h = match self.base.layout_height {
-	            layout::Params::MatchParent => parent_height,
-	            layout::Params::Exact(h) => h,
-	            layout::Params::WrapContent => {
-	                if label_size.cy < 1 {
-	                    let label = OsStr::new(self.label.as_str())
-	                        .encode_wide()
-	                        .chain(Some(0).into_iter())
-	                        .collect::<Vec<_>>();
-	                    gdi32::GetTextExtentPointW(user32::GetDC(self.base.hwnd),
-	                                               label.as_ptr(),
-	                                               self.label.len() as i32,
-	                                               &mut label_size);
-	                }
-	                label_size.cy as u16
-	            } 
-	        };
-	        let ret = (w, h);
-	        self.base.measured_size = ret;
-	        ret
-        }
+    	self.base.measured_size = match self.base.visibility() {
+    		Visibility::Gone => (0, 0),
+    		_ => {
+    			unsafe {
+		            let mut label_size: winapi::SIZE = mem::zeroed();
+		            let w = match self.base.layout_width {
+		                layout::Params::MatchParent => parent_width,
+		                layout::Params::Exact(w) => w,
+		                layout::Params::WrapContent => {
+		                    if label_size.cx < 1 {
+		                        let label = OsStr::new(self.label.as_str())
+		                            .encode_wide()
+		                            .chain(Some(0).into_iter())
+		                            .collect::<Vec<_>>();
+		                        gdi32::GetTextExtentPointW(user32::GetDC(self.base.hwnd),
+		                                                   label.as_ptr(),
+		                                                   self.label.len() as i32,
+		                                                   &mut label_size);
+		                    }
+		                    label_size.cx as u16
+		                } 
+		            };
+		            let h = match self.base.layout_height {
+		                layout::Params::MatchParent => parent_height,
+		                layout::Params::Exact(h) => h,
+		                layout::Params::WrapContent => {
+		                    if label_size.cy < 1 {
+		                        let label = OsStr::new(self.label.as_str())
+		                            .encode_wide()
+		                            .chain(Some(0).into_iter())
+		                            .collect::<Vec<_>>();
+		                        gdi32::GetTextExtentPointW(user32::GetDC(self.base.hwnd),
+		                                                   label.as_ptr(),
+		                                                   self.label.len() as i32,
+		                                                   &mut label_size);
+		                    }
+		                    label_size.cy as u16
+		                } 
+		            };
+		            (w, h)
+		        }
+    		}
+    	};
+        self.base.measured_size
     }
     fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
-    	None
+        None
     }
     fn is_container(&self) -> Option<&UiContainer> {
-    	None
+        None
     }
-    
+
     fn parent(&self) -> Option<&UiContainer> {
-    	None
+        self.base.parent()
     }
     fn parent_mut(&mut self) -> Option<&mut UiContainer> {
-    	None
+        self.base.parent_mut()
     }
     fn root(&self) -> Option<&UiContainer> {
-    	None
+        self.base.root()
     }
     fn root_mut(&mut self) -> Option<&mut UiContainer> {
-    	None
+        self.base.root_mut()
     }
 }
 
@@ -135,20 +139,20 @@ impl UiMember for Button {
     }
 
     fn set_visibility(&mut self, visibility: Visibility) {
-    	self.base.set_visibility(visibility);
+        self.base.set_visibility(visibility);
     }
     fn visibility(&self) -> Visibility {
-    	self.base.visibility()
+        self.base.visibility()
     }
-    
+
     fn role<'a>(&'a self) -> UiRole<'a> {
         UiRole::Button(self)
     }
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
-    	UiRoleMut::Button(self)
+        UiRoleMut::Button(self)
     }
     fn id(&self) -> Id {
-    	self.base.hwnd
+        self.base.hwnd
     }
 }
 

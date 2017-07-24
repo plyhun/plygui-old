@@ -1,7 +1,7 @@
 use super::*;
 use super::common::*;
 
-use {layout, UiRole, UiRoleMut, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout, Visibility};
+use {development, layout, UiRole, UiRoleMut, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout, Visibility};
 
 use std::{ptr, mem};
 use std::os::raw::c_void;
@@ -32,14 +32,14 @@ impl LinearLayout {
 
 impl UiMember for LinearLayout {
     fn set_visibility(&mut self, visibility: Visibility) {
-    	self.base.set_visibility(visibility);
+        self.base.set_visibility(visibility);
     }
     fn visibility(&self) -> Visibility {
-    	self.base.visibility()
+        self.base.visibility()
     }
-    
+
     fn id(&self) -> Id {
-    	self.base.hwnd
+        self.base.hwnd
     }
     fn size(&self) -> (u16, u16) {
         let rect = unsafe { window_rect(self.base.hwnd) };
@@ -63,8 +63,8 @@ impl UiControl for LinearLayout {
         (self.base.layout_width, self.base.layout_height)
     }
     fn set_layout_params(&mut self, wp: layout::Params, hp: layout::Params) {
-    	self.base.layout_width = wp;
-    	self.base.layout_height = hp;
+        self.base.layout_width = wp;
+        self.base.layout_height = hp;
     }
     fn draw(&mut self, x: u16, y: u16) {
         unsafe {
@@ -78,59 +78,63 @@ impl UiControl for LinearLayout {
         }
     }
     fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
-        let mut w = parent_width;
-        let mut h = parent_height;
-
-        if let layout::Params::Exact(ew) = self.base.layout_width {
-            w = ew;
-        }
-        if let layout::Params::Exact(eh) = self.base.layout_height {
-            w = eh;
-        }
-        match self.orientation {
-            layout::Orientation::Vertical => {
-                if let layout::Params::WrapContent = self.base.layout_height {
-                    let mut hh = 0;
-                    for ref mut child in self.children.as_mut_slice() {
-                        let (_, ch) = child.measure(w, h);
-                        hh += ch;
-                    }
-                    h = hh;
-                }
-            }
-            layout::Orientation::Horizontal => {
-                if let layout::Params::WrapContent = self.base.layout_width {
-                    let mut ww = 0;
-                    for ref mut child in self.children.as_mut_slice() {
-                        let (cw, _) = child.measure(w, h);
-                        ww += cw;
-                    }
-                    w = ww;
-                }
-            }
-        }
-        let ret = (w, h);
-        self.base.measured_size = ret;
-        ret
+        self.base.measured_size = match self.visibility() {
+        	Visibility::Gone => (0,0),
+        	_ => {
+        		let mut w = parent_width;
+		        let mut h = parent_height;
+		
+		        if let layout::Params::Exact(ew) = self.base.layout_width {
+		            w = ew;
+		        }
+		        if let layout::Params::Exact(eh) = self.base.layout_height {
+		            w = eh;
+		        }
+		        match self.orientation {
+		            layout::Orientation::Vertical => {
+		                if let layout::Params::WrapContent = self.base.layout_height {
+		                    let mut hh = 0;
+		                    for ref mut child in self.children.as_mut_slice() {
+		                        let (_, ch) = child.measure(w, h);
+		                        hh += ch;
+		                    }
+		                    h = hh;
+		                }
+		            }
+		            layout::Orientation::Horizontal => {
+		                if let layout::Params::WrapContent = self.base.layout_width {
+		                    let mut ww = 0;
+		                    for ref mut child in self.children.as_mut_slice() {
+		                        let (cw, _) = child.measure(w, h);
+		                        ww += cw;
+		                    }
+		                    w = ww;
+		                }
+		            }
+		        }
+		        (w, h)
+        	}
+        };
+        self.base.measured_size
     }
     fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
-    	Some(self)
+        Some(self)
     }
     fn is_container(&self) -> Option<&UiContainer> {
-    	Some(self)
+        Some(self)
     }
-    
+
     fn parent(&self) -> Option<&UiContainer> {
-    	None
+        None
     }
     fn parent_mut(&mut self) -> Option<&mut UiContainer> {
-    	None
+        None
     }
     fn root(&self) -> Option<&UiContainer> {
-    	None
+        None
     }
     fn root_mut(&mut self) -> Option<&mut UiContainer> {
-    	None
+        None
     }
 }
 
@@ -147,56 +151,56 @@ impl UiContainer for LinearLayout {
         old
     }
     fn child(&self) -> Option<&UiControl> {
-        self.children.get(0).map(|c|c.as_ref())
+        self.children.get(0).map(|c| c.as_ref())
     }
     fn child_mut(&mut self) -> Option<&mut UiControl> {
         //self.children.get_mut(0).map(|c|c.as_mut()) // WTF??
         if self.children.len() > 0 {
-        	Some(self.children[0].as_mut())
+            Some(self.children[0].as_mut())
         } else {
-        	None
+            None
         }
     }
     fn find_control_by_id_mut(&mut self, id_: Id) -> Option<&mut UiControl> {
-    	if self.id() == id_ {
-    		return Some(self);
-    	}
-    	for child in self.children.as_mut_slice() {
-    		if child.id() == id_ {
-    			return Some(child.as_mut());
-    		} else if let Some(c) = child.is_container_mut() {
-    			let ret = c.find_control_by_id_mut(id_);
-    			if ret.is_none() {
-    				continue;
-    			}
-    			return ret;
-    		}
-    	}
-    	None
+        if self.id() == id_ {
+            return Some(self);
+        }
+        for child in self.children.as_mut_slice() {
+            if child.id() == id_ {
+                return Some(child.as_mut());
+            } else if let Some(c) = child.is_container_mut() {
+                let ret = c.find_control_by_id_mut(id_);
+                if ret.is_none() {
+                    continue;
+                }
+                return ret;
+            }
+        }
+        None
     }
-	fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
-		if self.id() == id_ {
-    		return Some(self);
-    	}
-    	for child in self.children.as_slice() {
-    		if child.id() == id_ {
-    			return Some(child.as_ref());
-    		} else if let Some(c) = child.is_container() {
-    			let ret = c.find_control_by_id(id_);
-    			if ret.is_none() {
-    				continue;
-    			}
-    			return ret;
-    		}
-    	}
-    	None
-	}
-	fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
-		Some(self)
-	}
-	fn is_multi(&self) -> Option<&UiMultiContainer> {
-		Some(self)
-	}
+    fn find_control_by_id(&self, id_: Id) -> Option<&UiControl> {
+        if self.id() == id_ {
+            return Some(self);
+        }
+        for child in self.children.as_slice() {
+            if child.id() == id_ {
+                return Some(child.as_ref());
+            } else if let Some(c) = child.is_container() {
+                let ret = c.find_control_by_id(id_);
+                if ret.is_none() {
+                    continue;
+                }
+                return ret;
+            }
+        }
+        None
+    }
+    fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> {
+        Some(self)
+    }
+    fn is_multi(&self) -> Option<&UiMultiContainer> {
+        Some(self)
+    }
 }
 
 impl UiMultiContainer for LinearLayout {
@@ -218,11 +222,11 @@ impl UiMultiContainer for LinearLayout {
         Some(self.children.remove(index + 1))
     }
     fn remove_child_from(&mut self, index: usize) -> Option<Box<UiControl>> {
-    	if index < self.children.len() {
-    		Some(self.children.remove(index))
-    	} else {
-    		None
-    	}
+        if index < self.children.len() {
+            Some(self.children.remove(index))
+        } else {
+            None
+        }
     }
     fn child_at(&self, index: usize) -> Option<&Box<UiControl>> {
         self.children.get(index)
@@ -293,7 +297,7 @@ unsafe impl WindowsControl for LinearLayout {
 }
 
 unsafe fn register_window_class() -> Vec<u16> {
-    let class_name = OsStr::new("NativeUiContainerClass")
+    let class_name = OsStr::new(development::CLASS_ID_LAYOUT_LINEAR)
         .encode_wide()
         .chain(Some(0).into_iter())
         .collect::<Vec<_>>();
@@ -347,7 +351,7 @@ unsafe extern "system" fn whandler(hwnd: winapi::HWND, msg: winapi::UINT, wparam
                         y += ch;
                         height -= ch;
                     }
-                    _ => {},
+                    _ => {}
                 }
             }
 
