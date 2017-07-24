@@ -5,7 +5,7 @@ use std::os::raw::c_void;
 use self::cocoa::base::{class, id as cocoa_id};
 use self::cocoa::foundation::{NSString, NSRect, NSRange};
 use self::cocoa::appkit::{NSWindow, NSView};
-use objc::runtime::{Class, Object, Ivar, YES, class_copyIvarList};
+use objc::runtime::{Class, Object, Ivar, YES, NO, class_copyIvarList};
 
 use {layout, UiContainer, UiMember, UiControl, UiRoleMut, UiRole, Visibility};
 
@@ -50,7 +50,7 @@ impl CocoaControlBase {
                         msg_send![self.control, setHidden: YES];
                     }
                     _ => {
-                        msg_send![self.control, setHidden: YES];
+                        msg_send![self.control, setHidden: NO];
                     }
                 }
             }

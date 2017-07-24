@@ -212,7 +212,7 @@ unsafe fn register_window_class() -> Vec<u16> {
         hInstance: kernel32::GetModuleHandleW(ptr::null()),
         hIcon: user32::LoadIconW(ptr::null_mut(), winapi::IDI_APPLICATION),
         hCursor: user32::LoadCursorW(ptr::null_mut(), winapi::IDC_ARROW),
-        hbrBackground: ptr::null_mut(),
+        hbrBackground: (winapi::COLOR_BTNFACE + 1) as winapi::HBRUSH,
         lpszMenuName: ptr::null(),
         lpszClassName: class_name.as_ptr(),
         hIconSm: ptr::null_mut(),
@@ -250,7 +250,11 @@ unsafe extern "system" fn handler(hwnd: winapi::HWND, msg: winapi::UINT, wparam:
         winapi::WM_DESTROY => {
             user32::PostQuitMessage(0);
             return 0;
-        }
+        },
+        /*winapi::WM_PRINTCLIENT => {
+        	user32::SendMessageW(hwnd, winapi::WM_ERASEBKGND, wparam, lparam);
+	        return 0;
+        },*/
         /*winapi::WM_NOTIFY => {
         	let hdr: winapi::LPNMHDR = mem::transmute(lparam);
         	println!("notify for {:?}", hdr);
