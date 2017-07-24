@@ -45,6 +45,9 @@ impl WindowsControlBase {
                                } else {
                                    winapi::SW_SHOW
                                });
+            if let Some(parent) = self.root_mut() {
+            	user32::InvalidateRect(parent.id(), ptr::null_mut(), winapi::TRUE);
+            }
         }
     }
     pub fn visibility(&self) -> Visibility {
