@@ -378,3 +378,10 @@ unsafe extern "system" fn whandler(hwnd: winapi::HWND, msg: winapi::UINT, wparam
 
     user32::DefWindowProcW(hwnd, msg, wparam, lparam)
 }
+
+impl Drop for LinearLayout {
+    fn drop(&mut self) {
+        self.set_visibility(Visibility::Gone);
+        common::destroy_hwnd(self.base.hwnd, 0, None);
+    }
+}
