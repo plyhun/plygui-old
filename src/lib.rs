@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate derive_builder;
 
 #[cfg(target_os="windows")]
 mod win32;
@@ -19,11 +21,13 @@ use cocoa as inner;
 #[cfg(target_os = "macos")]
 pub use inner::common;
 
+pub mod ids;
 pub mod development;
 
 pub mod layout;
 
-pub use inner::{Id, Application, Window, Button, LinearLayout};
+pub use inner::{NativeId, Application, Window, Button, LinearLayout};
+pub use ids::Id;
 
 pub use std::fmt::{Result as FmtResult, Formatter, Debug};
 
@@ -42,13 +46,28 @@ pub trait UiMember {
     fn role<'a>(&'a self) -> UiRole<'a>;
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
     fn id(&self) -> Id;
+    
+    fn native_id(&self) -> NativeId;
+    
+    fn is_control(&self) -> Option<&UiControl>;
+    fn is_control_mut(&mut self) -> Option<&mut UiControl>;
 }
 
 pub trait UiControl: UiMember {
-    fn layout_params(&self) -> (layout::Params, layout::Params);
-    fn set_layout_params(&mut self, layout::Params, layout::Params);
-    fn draw(&mut self, x: u16, y: u16);
-    fn measure(&mut self, w: u16, h: u16) -> (u16, u16);
+    fn layout_width(&self) -> layout::Size;
+	fn layout_height(&self) -> layout::Size;
+	fn layout_gravity(&self) -> layout::Gravity;
+	fn layout_orientation(&self) -> layout::Orientation;
+	fn layout_alignment(&self) -> layout::Alignment;
+	
+	fn set_layout_width(&mut self, layout::Size);
+	fn set_layout_height(&mut self, layout::Size);
+	fn set_layout_gravity(&mut self, layout::Gravity);
+	fn set_layout_orientation(&mut self, layout::Orientation);
+	fn set_layout_alignment(&mut self, layout::Alignment);
+    
+    fn draw(&mut self, coords: Option<(u16, u16)>);
+    fn measure(&mut self, w: u16, h: u16) -> (u16, u16, bool);
 
     fn is_container_mut(&mut self) -> Option<&mut UiContainer>;
     fn is_container(&self) -> Option<&UiContainer>;
@@ -69,20 +88,33 @@ pub trait UiContainer: UiMember {
 
     fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer>;
     fn is_multi(&self) -> Option<&UiMultiContainer>;
+    fn is_control_mut(&mut self) -> Option<&mut UiControl>;
+    fn is_control(&self) -> Option<&UiControl>;
 }
 
-pub trait UiMultiContainer {
-    fn push_child(&mut self, Box<UiControl>);
-    fn pop_child(&mut self) -> Option<Box<UiControl>>;
+pub trait UiMultiContainer: UiContainer {
     fn len(&self) -> usize;
     fn set_child_to(&mut self, index: usize, Box<UiControl>) -> Option<Box<UiControl>>;
     fn remove_child_from(&mut self, index: usize) -> Option<Box<UiControl>>;
     fn child_at(&self, index: usize) -> Option<&Box<UiControl>>;
     fn child_at_mut(&mut self, index: usize) -> Option<&mut Box<UiControl>>;
+    
     fn clear(&mut self) {
         let len = self.len();
         for index in (0..len).rev() {
             self.remove_child_from(index);
+        }
+    }
+    fn push_child(&mut self, child: Box<UiControl>) {
+        let len = self.len();
+        self.set_child_to(len, child);
+    }
+    fn pop_child(&mut self) -> Option<Box<UiControl>> {
+        let len = self.len();
+        if len > 0 {
+        	self.remove_child_from(len - 1)
+        } else {
+        	None
         }
     }
 }

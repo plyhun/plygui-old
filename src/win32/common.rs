@@ -5,37 +5,106 @@ use std::os::raw::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::ffi::OsStr;
 
-use {development, layout, UiContainer, UiMember, UiControl, UiRoleMut, Visibility};
+use {development, ids, layout, Id, UiContainer, UiMember, UiControl, UiRoleMut, Visibility};
 
 pub static mut INSTANCE: winapi::HINSTANCE = 0 as winapi::HINSTANCE;
 
 #[repr(C)]
 pub struct WindowsControlBase {
+	id: Id,
+    layout: development::layout::LayoutBase,
+    visibility: Visibility,
+    
     pub hwnd: winapi::HWND,
     pub subclass_id: u64,
-    pub layout_width: layout::Params,
-    pub layout_height: layout::Params,
+    pub coords: Option<(u16, u16)>,
     pub measured_size: (u16, u16),
 
     pub h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
-
-    visibility: Visibility,
 }
 
 impl Default for WindowsControlBase {
     fn default() -> WindowsControlBase {
         WindowsControlBase {
+        	id: ids::next(),
             hwnd: 0 as winapi::HWND,
             h_resize: None,
             subclass_id: 0,
-            layout_width: layout::Params::MatchParent,
-            layout_height: layout::Params::WrapContent,
+            layout: development::layout::LayoutBase {
+	            width: layout::Size::MatchParent,
+				height: layout::Size::WrapContent,
+				gravity: layout::gravity::CENTER_HORIZONTAL | layout::gravity::TOP,
+				orientation: layout::Orientation::Vertical,
+				alignment: layout::Alignment::None,
+            },
             measured_size: (0, 0),
+            coords: None,
             visibility: Visibility::Visible,
         }
     }
 }
 impl WindowsControlBase {
+	fn invalidate(&mut self) {
+		unsafe {
+			let self_hwnd = self.hwnd;
+			if let Some(parent) = self.parent_mut() {
+				if let Some(real_self) = cast_hwnd_to_uimember(self_hwnd) {
+					if let Some(control_self) = real_self.is_control_mut() {
+						let (pw, ph) = parent.size();
+						let wparent = common::cast_hwnd_to_windows(parent.native_id());
+						let (_,_,changed) = control_self.measure(pw, ph);
+						control_self.draw(None);
+							
+						if changed {
+							if let Some(wparent) = wparent {
+								wparent.as_base_mut().invalidate();
+							} 
+						} 
+					}
+				}
+				if parent.native_id() != 0 as winapi::HWND {
+	        		user32::InvalidateRect(parent.native_id(), ptr::null_mut(), winapi::TRUE);
+	        	}
+	        }
+		}
+	}
+	pub fn layout_width(&self) -> layout::Size {
+    	self.layout.width
+    }
+	pub fn layout_height(&self) -> layout::Size {
+		self.layout.height
+	}
+	pub fn layout_gravity(&self) -> layout::Gravity {
+		self.layout.gravity
+	}
+	pub fn layout_orientation(&self) -> layout::Orientation {
+		self.layout.orientation
+	}
+	pub fn layout_alignment(&self) -> layout::Alignment {
+		self.layout.alignment
+	}
+	
+	pub fn set_layout_width(&mut self, width: layout::Size) {
+		self.layout.width = width;
+		self.invalidate();
+	}
+	pub fn set_layout_height(&mut self, height: layout::Size) {
+		self.layout.height = height;
+		self.invalidate();
+	}
+	pub fn set_layout_gravity(&mut self, gravity: layout::Gravity) {
+		self.layout.gravity = gravity;
+		self.invalidate();
+	}
+	pub fn set_layout_orientation(&mut self, orientation: layout::Orientation) {
+		self.layout.orientation = orientation;
+		self.invalidate();
+	}
+	pub fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
+		self.layout.alignment = alignment;
+		self.invalidate();
+	}
+    
     pub fn set_visibility(&mut self, visibility: Visibility) {
         self.visibility = visibility;
         unsafe {
@@ -45,10 +114,11 @@ impl WindowsControlBase {
                                } else {
                                    winapi::SW_SHOW
                                });
-            if let Some(parent) = self.root_mut() {
-            	user32::InvalidateRect(parent.id(), ptr::null_mut(), winapi::TRUE);
-            }
+            self.invalidate();
         }
+    }
+    pub fn id(&self) -> Id {
+    	self.id
     }
     pub fn visibility(&self) -> Visibility {
         self.visibility
@@ -152,7 +222,8 @@ impl WindowsControlBase {
 pub unsafe trait WindowsControl: UiMember {
     unsafe fn on_added_to_container(&mut self, &WindowsContainer, x: u16, y: u16);
     unsafe fn on_removed_from_container(&mut self, &WindowsContainer);
-    //unsafe fn measure(&mut self, hwnd: winapi::HWND, parent_width: u16, parent_height: u16) -> (u16, u16);
+    fn as_base(&self) -> &WindowsControlBase;
+    fn as_base_mut(&mut self) -> &mut WindowsControlBase;
 }
 
 pub unsafe trait WindowsContainer: UiContainer + UiMember {
@@ -258,6 +329,49 @@ pub unsafe fn cast_uicontrol_to_windows(input: &mut Box<UiControl>) -> &mut Wind
         UiRoleMut::Window(_) => {
             panic!("Window as a container child is impossible!");
         }
+    }
+}
+
+pub unsafe fn cast_hwnd_to_windows<'a>(hwnd: winapi::HWND) -> Option<&'a mut WindowsControl> {
+	let hwnd_ptr = user32::GetWindowLongPtrW(hwnd, winapi::GWLP_USERDATA);
+    let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(hwnd).as_ref());
+    match parent_class.as_str() {
+        development::CLASS_ID_LAYOUT_LINEAR => {
+            let ll: &mut layout_linear::LinearLayout = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(ll);
+        },
+        /*development::CLASS_ID_WINDOW => {
+            let w: &mut window::Window = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(w);
+        },*/
+        button::CLASS_ID => {
+            let b: &mut button::Button = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(b);
+        },
+        _ => None,
+    }
+}
+
+pub unsafe fn cast_hwnd_to_uimember<'a>(hwnd: winapi::HWND) -> Option<&'a mut UiMember> {
+	let hwnd_ptr = user32::GetWindowLongPtrW(hwnd, winapi::GWLP_USERDATA);
+    let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(hwnd).as_ref());
+    match parent_class.as_str() {
+        development::CLASS_ID_LAYOUT_LINEAR => {
+            let ll: &mut layout_linear::LinearLayout = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(ll);
+        },
+        development::CLASS_ID_WINDOW => {
+            let w: &mut window::Window = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(w);
+        },
+        button::CLASS_ID => {
+            let b: &mut button::Button = mem::transmute(hwnd_ptr as *mut c_void);
+            return Some(b);
+        },
+        _ => {
+        	println!("Unsupported {}", parent_class);
+	        None
+        },
     }
 }
 

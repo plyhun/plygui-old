@@ -1,7 +1,7 @@
 use super::*;
 use super::common::*;
 
-use {development, UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
+use {ids, development, Id, UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
 
 use std::{ptr, mem, str};
 use std::os::raw::c_void;
@@ -15,6 +15,7 @@ lazy_static! {
 
 #[repr(C)]
 pub struct Window {
+	id: Id,
     hwnd: winapi::HWND,
     visibility: Visibility,
     child: Option<Box<UiControl>>,
@@ -45,6 +46,7 @@ impl Window {
                 .collect::<Vec<_>>();
 
             let mut w = Box::new(Window {
+				            		id: ids::next(),
                                      hwnd: 0 as winapi::HWND,
                                      child: None,
                                      h_resize: None,
@@ -146,6 +148,12 @@ impl UiContainer for Window {
     fn is_multi(&self) -> Option<&UiMultiContainer> {
         None
     }
+    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
+    	None
+    }
+    fn is_control(&self) -> Option<&UiControl> {
+    	None
+    }  
 }
 
 impl UiMember for Window {
@@ -178,9 +186,18 @@ impl UiMember for Window {
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::Window(self)
     }
-    fn id(&self) -> Id {
+    fn native_id(&self) -> NativeId {
         self.hwnd
     }
+    fn id(&self) -> Id {
+    	self.id
+    }
+    fn is_control(&self) -> Option<&UiControl> {
+    	None
+    }
+    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
+    	None
+    } 
 }
 
 impl Drop for Window {
@@ -239,7 +256,7 @@ unsafe extern "system" fn handler(hwnd: winapi::HWND, msg: winapi::UINT, wparam:
 
             if let Some(ref mut child) = w.child {
                 child.measure(width, height);
-                child.draw(0, 0); //TODO padding
+                child.draw(Some((0, 0))); //TODO padding
             }
 
             if let Some(ref mut cb) = w.h_resize {

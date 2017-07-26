@@ -15,7 +15,7 @@ mod button;
 mod layout_linear;
 mod layout_relative;
 
-pub type Id = winapi::HWND;
+pub type NativeId = winapi::HWND;
 
 pub use self::application::Application;
 pub use self::window::Window;

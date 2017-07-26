@@ -3,7 +3,7 @@ use super::common::WindowsContainer;
 
 use std::{mem, thread};
 
-use UiApplication;
+use {ids, UiApplication};
 
 pub struct Application {
     name: String,
@@ -35,6 +35,7 @@ impl UiApplication for Application {
 impl Application {
     pub fn with_name(name: &str) -> Box<Application> {
     	init_comctl();
+    	ids::next();
 	    Box::new(Application {
                      name: name.into(),
                      windows: Vec::with_capacity(1),
