@@ -8,23 +8,24 @@ name = "plygui"
 path = "src/lib.rs"
 
 #[target.'cfg(target_os = "windows")'.dependencies]
-[dependencies]
-user32-sys = "~0.2"
-gdi32-sys = "~0.2"
-kernel32-sys = "~0.2"
-comctl32-sys = "~0.2"
-comdlg32-sys = "~0.2"
-winapi = "~0.2"
-lazy_static = "~0.2"
-derive_builder = "~0.5"
+#[dependencies]
+#user32-sys = "~0.2"
+#gdi32-sys = "~0.2"
+#kernel32-sys = "~0.2"
+#comctl32-sys = "~0.2"
+#comdlg32-sys = "~0.2"
+#winapi = "~0.2"
+#lazy_static = "~0.2"
+#derive_builder = "~0.5"
 
 #[build-dependencies.'cfg(target_os = "windows")'.dependencies]
-[build-dependencies]
-embed-resource = "~1.1"
+#[build-dependencies]
+#embed-resource = "~1.1"
 
 #[target.'cfg(target_os = "macos")'.dependencies]
-#[dependencies]
-#cocoa = "~0.9"
-#core-foundation = "~0.3"
-#objc = "~0.2"
-#lazy_static = "~0.2"
+[dependencies]
+cocoa = "~0.9"
+core-foundation = "~0.3"
+objc = "~0.2"
+lazy_static = "~0.2"
+derive_builder = "~0.5"

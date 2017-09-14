@@ -88,8 +88,6 @@ pub trait UiContainer: UiMember {
 
     fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer>;
     fn is_multi(&self) -> Option<&UiMultiContainer>;
-    fn is_control_mut(&mut self) -> Option<&mut UiControl>;
-    fn is_control(&self) -> Option<&UiControl>;
 }
 
 pub trait UiMultiContainer: UiContainer {

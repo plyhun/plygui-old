@@ -352,7 +352,7 @@ pub unsafe fn cast_hwnd_to_windows<'a>(hwnd: winapi::HWND) -> Option<&'a mut Win
     }
 }
 
-pub unsafe fn cast_hwnd_to_uimember<'a>(hwnd: winapi::HWND) -> Option<&'a mut UiMember> {
+pub unsafe fn cast_hwnd_to_uimember<'a>(hwnd: winapi::HWND) -> Option<&'a mut UiMember> {// TODO merge with above using T: Sized
 	let hwnd_ptr = user32::GetWindowLongPtrW(hwnd, winapi::GWLP_USERDATA);
     let parent_class = String::from_utf16_lossy(get_class_name_by_hwnd(hwnd).as_ref());
     match parent_class.as_str() {

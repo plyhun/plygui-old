@@ -10,14 +10,14 @@ use objc::declare::ClassDecl;
 use std::mem;
 use std::os::raw::c_void;
 
-pub const IVAR: &str = "plyguiButton";
+pub const IVAR: &str = development::CLASS_ID_BUTTON;
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
 const PADDING: u16 = 15;
 
-use {layout, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility, UiContainer};
+use {development, layout, Id, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility, UiContainer};
 
 #[repr(C)]
 pub struct Button {
@@ -52,21 +52,48 @@ impl UiButton for Button {
 }
 
 impl UiControl for Button {
+    fn layout_width(&self) -> layout::Size {
+    	self.base.layout_width()
+    }
+	fn layout_height(&self) -> layout::Size {
+		self.base.layout_height()
+	}
+	fn layout_gravity(&self) -> layout::Gravity {
+		self.base.layout_gravity()
+	}
+	fn layout_orientation(&self) -> layout::Orientation {
+		self.base.layout_orientation()
+	}
+	fn layout_alignment(&self) -> layout::Alignment {
+		self.base.layout_alignment()
+	}
+	
+	fn set_layout_width(&mut self, width: layout::Size) {
+		self.base.set_layout_width(width);
+	}
+	fn set_layout_height(&mut self, height: layout::Size) {
+		self.base.set_layout_height(height);
+	}
+	fn set_layout_gravity(&mut self, gravity: layout::Gravity) {
+		self.base.set_layout_gravity(gravity);
+	}
+	fn set_layout_orientation(&mut self, orientation: layout::Orientation) {
+		self.base.set_layout_orientation(orientation);
+	}
+	fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
+		self.base.set_layout_alignment(alignment);
+	}
     fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
         None
     }
     fn is_container(&self) -> Option<&UiContainer> {
         None
     }
-    fn layout_params(&self) -> (layout::Params, layout::Params) {
-        (self.base.layout_width, self.base.layout_height)
-    }
-    fn set_layout_params(&mut self, wp: layout::Params, hp: layout::Params) {
-        self.base.layout_width = wp;
-        self.base.layout_height = hp;
-    }
-    fn draw(&mut self, x: u16, y: u16) {
-        unsafe {
+    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    	if coords.is_some() {
+    		self.base.coords = coords;
+    	}
+        /*unsafe {
             let mut frame: NSRect = msg_send![self.base.control, frame];
             frame.size = NSSize::new(self.base.measured_size.0 as f64,
                                      self.base.measured_size.1 as f64);
@@ -81,17 +108,18 @@ impl UiControl for Button {
                      self.base.measured_size.0,
                      self.base.measured_size.1);
             }
-        }
+        }*/
     }
-    fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
+    fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {
+    	let old_size = self.base.measured_size;
         self.base.measured_size = match self.visibility() {
             Visibility::Gone => (0, 0),
             _ => unsafe {
                 let mut label_size = (0, 0);
-                let w = match self.base.layout_width {
-                    layout::Params::MatchParent => parent_width,
-                    layout::Params::Exact(w) => w,
-                    layout::Params::WrapContent => {
+                let w = match self.base.layout_width() {
+                    layout::Size::MatchParent => parent_width,
+                    layout::Size::Exact(w) => w,
+                    layout::Size::WrapContent => {
                         if label_size.0 < 1 {
                             label_size = common::measure_string(self.label.as_ref());
                             label_size.0 += PADDING;
@@ -100,10 +128,10 @@ impl UiControl for Button {
                         label_size.0 as u16
                     } 
                 };
-                let h = match self.base.layout_height {
-                    layout::Params::MatchParent => parent_height,
-                    layout::Params::Exact(h) => h,
-                    layout::Params::WrapContent => {
+                let h = match self.base.layout_height() {
+                    layout::Size::MatchParent => parent_height,
+                    layout::Size::Exact(h) => h,
+                    layout::Size::WrapContent => {
                         if label_size.1 < 1 {
                             label_size = common::measure_string(self.label.as_ref());
                             label_size.0 += PADDING;
@@ -115,7 +143,7 @@ impl UiControl for Button {
                 (w, h)
             },
         };
-        self.base.measured_size
+        (self.base.measured_size.0, self.base.measured_size.1, self.base.measured_size != old_size)
     }
     fn parent(&self) -> Option<&UiContainer> {
         self.base.parent()
@@ -151,15 +179,24 @@ impl UiMember for Button {
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::Button(self)
     }
-    fn id(&self) -> Id {
-        self.base.id()
+    fn native_id(&self) -> NativeId {
+        self.base.control
     }
+    fn id(&self) -> Id {
+    	self.base.id()
+    }
+    fn is_control(&self) -> Option<&UiControl> {
+    	Some(self)
+    }
+    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
+    	Some(self)
+    } 
 }
 
 unsafe impl common::CocoaControl for Button {
     unsafe fn on_added_to_container(&mut self, parent: &common::CocoaContainer, x: u16, y: u16) {
         let (pw, ph) = parent.size();
-        let (w, h) = self.measure(pw, ph);
+        let (w, h, _) = self.measure(pw, ph);
 
         let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
                                NSSize::new(w as f64, h as f64));
@@ -181,15 +218,17 @@ unsafe impl common::CocoaControl for Button {
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
         self.base.on_removed_from_container();
     }
-
-    unsafe fn base(&mut self) -> &mut common::CocoaControlBase {
-        &mut self.base
+	fn as_base(&self) -> &common::CocoaControlBase {
+    	&self.base
+    }
+    fn as_base_mut(&mut self) -> &mut common::CocoaControlBase {
+    	&mut self.base
     }
 }
 
 unsafe fn register_window_class() -> RefClass {
     let superclass = Class::get("NSButton").unwrap();
-    let mut decl = ClassDecl::new("PlyguiButton", superclass).unwrap();
+    let mut decl = ClassDecl::new(IVAR, superclass).unwrap();
 
     decl.add_method(sel!(mouseDown:),
                     button_left_click as extern "C" fn(&Object, Sel, id));

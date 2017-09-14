@@ -147,13 +147,7 @@ impl UiContainer for Window {
     }
     fn is_multi(&self) -> Option<&UiMultiContainer> {
         None
-    }
-    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
-    	None
-    }
-    fn is_control(&self) -> Option<&UiControl> {
-    	None
-    }  
+    } 
 }
 
 impl UiMember for Window {

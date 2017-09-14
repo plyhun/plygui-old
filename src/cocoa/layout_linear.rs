@@ -10,12 +10,12 @@ use objc::declare::ClassDecl;
 use std::mem;
 use std::os::raw::c_void;
 
-pub const IVAR: &str = "plyguiLinearLayout";
+pub const IVAR: &str = development::CLASS_ID_LAYOUT_LINEAR;
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
-use {layout, UiRole, UiRoleMut, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout, Visibility};
+use {development, layout, Id, UiRole, UiRoleMut, UiControl, UiMember, UiContainer, UiMultiContainer, UiLinearLayout, Visibility};
 
 #[repr(C)]
 pub struct LinearLayout {
@@ -34,6 +34,12 @@ impl LinearLayout {
     }
 }
 impl UiMember for LinearLayout {
+	fn is_control(&self) -> Option<&UiControl> {
+    	Some(self)
+    }
+    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
+    	Some(self)
+    }
     fn set_visibility(&mut self, visibility: Visibility) {
         self.base.set_visibility(visibility);
     }
@@ -54,74 +60,109 @@ impl UiMember for LinearLayout {
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a> {
         UiRoleMut::LinearLayout(self)
     }
+    fn native_id(&self) -> NativeId {
+        self.base.control
+    }
     fn id(&self) -> Id {
-        self.base.id()
+    	self.base.id()
     }
 }
 
 impl UiControl for LinearLayout {
-    fn layout_params(&self) -> (layout::Params, layout::Params) {
-        (self.base.layout_width, self.base.layout_height)
+    fn layout_width(&self) -> layout::Size {
+    	self.base.layout_width()
     }
-    fn set_layout_params(&mut self, wp: layout::Params, hp: layout::Params) {
-        self.base.layout_width = wp;
-        self.base.layout_height = hp;
+	fn layout_height(&self) -> layout::Size {
+		self.base.layout_height()
+	}
+	fn layout_gravity(&self) -> layout::Gravity {
+		self.base.layout_gravity()
+	}
+	fn layout_orientation(&self) -> layout::Orientation {
+		self.base.layout_orientation()
+	}
+	fn layout_alignment(&self) -> layout::Alignment {
+		self.base.layout_alignment()
+	}
+	
+	fn set_layout_width(&mut self, width: layout::Size) {
+		self.base.set_layout_width(width);
+	}
+	fn set_layout_height(&mut self, height: layout::Size) {
+		self.base.set_layout_height(height);
+	}
+	fn set_layout_gravity(&mut self, gravity: layout::Gravity) {
+		self.base.set_layout_gravity(gravity);
+	}
+	fn set_layout_orientation(&mut self, orientation: layout::Orientation) {
+		self.base.set_layout_orientation(orientation);
+	}
+	fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
+		self.base.set_layout_alignment(alignment);
+	}
+    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    	if coords.is_some() {
+    		self.base.coords = coords;
+    	}
+    	if let Some((x, y)) = self.base.coords {
+	        let mut x = x;
+	        let mut y = y;
+	        let my_h = self.size().1;
+	        println!("draw {} at {}/{}", my_h, x, y);
+	        for mut child in self.children.as_mut_slice() {
+	            let child_size = child.size();
+	            match self.orientation {
+	                layout::Orientation::Horizontal => {
+	                    child.draw(Some((x, y)));
+	                    x += child_size.0
+	                }
+	                layout::Orientation::Vertical => {
+	                	println!("child at {}/{} {} {}", x, my_h, y, child_size.1);
+	                    child.draw(Some((x, y + my_h - child_size.1)));
+	                    y += child_size.1
+	                }
+	            }
+	        }    	
+	        if let Some(ref mut cb) = self.base.h_resize {
+	            unsafe {
+	                let object: &Object = mem::transmute(self.base.control);
+	                let saved: *mut c_void = *object.get_ivar(IVAR);
+	                let mut ll2: &mut LinearLayout = mem::transmute(saved);
+	                (cb)(ll2, self.base.measured_size.0, self.base.measured_size.1);
+	            }
+	        }
+	    }
     }
-    fn draw(&mut self, x: u16, y: u16) {
-        let mut x = x;
-        let mut y = y;
-        let my_h = self.size().1;
-        for mut child in self.children.as_mut_slice() {
-            let child_size = child.size();
-            match self.orientation {
-                layout::Orientation::Horizontal => {
-                    child.draw(x, y);
-                    x += child_size.0
-                }
-                layout::Orientation::Vertical => {
-                    child.draw(x, my_h - y - child_size.1);
-                    y += child_size.1
-                }
-            }
-        }
-        if let Some(ref mut cb) = self.base.h_resize {
-            unsafe {
-                let object: &Object = mem::transmute(self.base.control);
-                let saved: *mut c_void = *object.get_ivar(IVAR);
-                let mut ll2: &mut LinearLayout = mem::transmute(saved);
-                (cb)(ll2, self.base.measured_size.0, self.base.measured_size.1);
-            }
-        }
-    }
-    fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16) {
+    fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {
+    	let old_size = self.base.measured_size;
         self.base.measured_size = match self.base.visibility() {
 	        Visibility::Gone => (0,0),
 	        _ => {
 	        	let mut w = parent_width;
 		        let mut h = parent_height;
 		
-		        if let layout::Params::Exact(ew) = self.base.layout_width {
+		        if let layout::Size::Exact(ew) = self.base.layout_width() {
 		            w = ew;
 		        }
-		        if let layout::Params::Exact(eh) = self.base.layout_height {
+		        if let layout::Size::Exact(eh) = self.base.layout_height() {
 		            w = eh;
 		        }
 		        if w == parent_width || h == parent_height {
 		            let mut ww = 0;
 		            let mut hh = 0;
 		            for ref mut child in self.children.as_mut_slice() {
-		                let (cw, ch) = child.measure(w, h);
+		                let (cw, ch,_) = child.measure(w, h);
 		                ww += cw;
 		                hh += ch;
 		            }
 		            match self.orientation {
 		                layout::Orientation::Vertical => {
-		                    if let layout::Params::WrapContent = self.base.layout_height {
+		                    if let layout::Size::WrapContent = self.base.layout_height() {
 		                        h = hh;
 		                    }
 		                }
 		                layout::Orientation::Horizontal => {
-		                    if let layout::Params::WrapContent = self.base.layout_width {
+		                    if let layout::Size::WrapContent = self.base.layout_width() {
 		                        w = ww;
 		                    }
 		                }
@@ -130,7 +171,7 @@ impl UiControl for LinearLayout {
 		        (w, h)
 	        }
         };
-        self.base.measured_size
+        (self.base.measured_size.0, self.base.measured_size.1, self.base.measured_size != old_size)
     }
     fn is_container_mut(&mut self) -> Option<&mut UiContainer> {
         Some(self)
@@ -191,7 +232,7 @@ impl UiMultiContainer for LinearLayout {
                         wc.on_added_to_container(self, x, my_h - y); //TODO padding
                     }
                 }
-                self.base.control.addSubview_(wc.base().control);
+                self.base.control.addSubview_(wc.as_base().control);
             }
         }
         self.children.insert(index, new);
@@ -300,7 +341,7 @@ unsafe impl CocoaContainer for LinearLayout {
 unsafe impl CocoaControl for LinearLayout {
     unsafe fn on_added_to_container(&mut self, parent: &common::CocoaContainer, x: u16, y: u16) {
         let (pw, ph) = parent.size();
-        let (w, h) = self.measure(pw, ph);
+        let (w, h, _) = self.measure(pw, ph);
 
         let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
                                NSSize::new(w as f64, h as f64));
@@ -327,7 +368,7 @@ unsafe impl CocoaControl for LinearLayout {
                     y += yy;
                 }
             }
-            ll2.base.control.addSubview_(wc.base().control);
+            ll2.base.control.addSubview_(wc.as_base().control);
         }
     }
     unsafe fn on_removed_from_container(&mut self, _: &common::CocoaContainer) {
@@ -338,15 +379,17 @@ unsafe impl CocoaControl for LinearLayout {
         }
         self.base.on_removed_from_container();
     }
-
-    unsafe fn base(&mut self) -> &mut common::CocoaControlBase {
-        &mut self.base
+    fn as_base(&self) -> &common::CocoaControlBase {
+    	&self.base
+    }
+    fn as_base_mut(&mut self) -> &mut common::CocoaControlBase {
+    	&mut self.base
     }
 }
 
 unsafe fn register_window_class() -> RefClass {
     let superclass = Class::get("NSView").unwrap();
-    let mut decl = ClassDecl::new("PlyguiLinearLayout", superclass).unwrap();
+    let mut decl = ClassDecl::new(IVAR, superclass).unwrap();
 
     decl.add_ivar::<*mut c_void>(IVAR);
 

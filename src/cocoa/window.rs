@@ -10,14 +10,15 @@ use objc::declare::ClassDecl;
 use std::mem;
 use std::os::raw::c_void;
 
-use {UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
+use {development, ids, Id, UiRole, UiRoleMut, UiWindow, UiControl, UiMember, UiContainer, UiMultiContainer, Visibility};
 
-pub const IVAR: &str = "plyguiWindow";
+pub const IVAR: &str = development::CLASS_ID_WINDOW;
 lazy_static! {
 	static ref WINDOW_CLASS: RefClass = unsafe { register_window_class() };
 }
 
 pub struct Window {
+    id: Id,
     window: id,
     container: id,
     visibility: Visibility,
@@ -58,6 +59,7 @@ impl Window {
             window.setContentView_(view);
 
             let mut window = Box::new(Window {
+							            id: ids::next(),
                                           window: window,
                                           container: view,
                                           visibility: Visibility::Visible,
@@ -85,13 +87,13 @@ impl UiContainer for Window {
         unsafe {
             let mut old = self.child.take();
             if let Some(old) = old.as_mut() {
-                let mut wc = cast_uicontrol_to_cocoa_mut(old);
+                let mut wc = common::cast_uicontrol_to_cocoa_mut(old);
                 wc.on_removed_from_container(self);
             }
             if let Some(new) = child.as_mut() {
-                let mut wc = cast_uicontrol_to_cocoa_mut(new);
+                let mut wc = common::cast_uicontrol_to_cocoa_mut(new);
                 wc.on_added_to_container(self, 0, 0); //TODO padding
-                self.container.addSubview_(wc.base().control);
+
             }
             self.child = child;
 
@@ -170,7 +172,17 @@ impl UiMember for Window {
         UiRoleMut::Window(self)
     }
     fn id(&self) -> Id {
-        self.window
+        self.id
+    }
+    fn native_id(&self) -> NativeId {
+    	self.window
+    }
+    
+    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
+    	None
+    }
+    fn is_control(&self) -> Option<&UiControl> {
+    	None
     }
 }
 
@@ -223,10 +235,9 @@ extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
         let size = window.window.contentView().frame().size;
 
         if let Some(ref mut child) = window.child {
-            child.measure(size.width as u16, size.height as u16);
-            child.draw(0, 0); //TODO padding
+            let (_, h, _) = child.measure(size.width as u16, size.height as u16);
+            child.draw(Some((0, size.height as u16 - h))); //TODO padding
         }
-
         if let Some(ref mut cb) = window.h_resize {
             let w2: &mut Window = mem::transmute(saved);
             (cb)(w2, size.width as u16, size.height as u16);
