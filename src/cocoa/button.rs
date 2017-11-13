@@ -16,6 +16,7 @@ lazy_static! {
 }
 
 const PADDING: u16 = 15;
+const BASE_CLASS: &str = "NSButton";
 
 use {development, layout, Id, UiRole, UiRoleMut, UiControl, UiButton, UiMember, Visibility, UiContainer};
 
@@ -93,10 +94,11 @@ impl UiControl for Button {
     	if coords.is_some() {
     		self.base.coords = coords;
     	}
-        /*unsafe {
+        unsafe {
             let mut frame: NSRect = msg_send![self.base.control, frame];
             frame.size = NSSize::new(self.base.measured_size.0 as f64,
                                      self.base.measured_size.1 as f64);
+            let (x, y) = self.base.coords.unwrap();
             frame.origin = NSPoint::new(x as f64, y as f64);
             msg_send![self.base.control, setFrame: frame];
 
@@ -108,7 +110,7 @@ impl UiControl for Button {
                      self.base.measured_size.0,
                      self.base.measured_size.1);
             }
-        }*/
+        }
     }
     fn measure(&mut self, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {
     	let old_size = self.base.measured_size;
@@ -198,7 +200,7 @@ unsafe impl common::CocoaControl for Button {
         let (pw, ph) = parent.size();
         let (w, h, _) = self.measure(pw, ph);
 
-        let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
+        let rect = NSRect::new(NSPoint::new(x as f64, (ph - y - h) as f64),
                                NSSize::new(w as f64, h as f64));
 
         let base: id = msg_send![WINDOW_CLASS.0, alloc];
@@ -227,7 +229,7 @@ unsafe impl common::CocoaControl for Button {
 }
 
 unsafe fn register_window_class() -> RefClass {
-    let superclass = Class::get("NSButton").unwrap();
+    let superclass = Class::get(BASE_CLASS).unwrap();
     let mut decl = ClassDecl::new(IVAR, superclass).unwrap();
 
     decl.add_method(sel!(mouseDown:),
@@ -240,10 +242,10 @@ unsafe fn register_window_class() -> RefClass {
 }
 
 extern "C" fn button_left_click(this: &Object, _: Sel, param: id) {
-    unsafe {
+	unsafe {
         let saved: *mut c_void = *this.get_ivar(IVAR);
         let button: &mut Button = mem::transmute(saved.clone());
-        msg_send![super(button.base.control, Class::get("NSButton").unwrap()), mouseDown: param];
+        msg_send![super(button.base.control, Class::get(BASE_CLASS).unwrap()), mouseDown: param];
         if let Some(ref mut cb) = button.h_left_clicked {
             let b2: &mut Button = mem::transmute(saved);
             (cb)(b2);
@@ -251,7 +253,7 @@ extern "C" fn button_left_click(this: &Object, _: Sel, param: id) {
     }
 }
 extern "C" fn button_right_click(this: &Object, _: Sel, param: id) {
-    println!("right!");
+    //println!("right!");
     unsafe {
         let saved: *mut c_void = *this.get_ivar(IVAR);
         let button: &mut Button = mem::transmute(saved.clone());
@@ -259,6 +261,6 @@ extern "C" fn button_right_click(this: &Object, _: Sel, param: id) {
             let b2: &mut Button = mem::transmute(saved);
             (cb)(b2);
         }
-        msg_send![super(button.base.control, Class::get("NSButton").unwrap()), rightMouseDown: param];
+        msg_send![super(button.base.control, Class::get(BASE_CLASS).unwrap()), rightMouseDown: param];
     }
 }

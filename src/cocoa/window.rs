@@ -91,9 +91,10 @@ impl UiContainer for Window {
                 wc.on_removed_from_container(self);
             }
             if let Some(new) = child.as_mut() {
+            	let (_, h) = self.size();
                 let mut wc = common::cast_uicontrol_to_cocoa_mut(new);
                 wc.on_added_to_container(self, 0, 0); //TODO padding
-
+                self.container.addSubview_(wc.as_base().control); 
             }
             self.child = child;
 
