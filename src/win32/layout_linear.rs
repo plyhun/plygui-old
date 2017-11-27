@@ -99,7 +99,7 @@ impl UiControl for LinearLayout {
 	fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
 		self.base.set_layout_alignment(alignment);
 	}
-    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    fn draw(&mut self, coords: Option<(i32, i32)>) {
     	if coords.is_some() {
     		self.base.coords = coords;
     	}
@@ -119,8 +119,8 @@ impl UiControl for LinearLayout {
 	            child.draw(Some((x, y)));
 	            let (xx, yy) = child.size();
 	            match self.orientation {
-	                layout::Orientation::Horizontal => x += xx,
-	                layout::Orientation::Vertical => y += yy,
+	                layout::Orientation::Horizontal => x += xx as i32,
+	                layout::Orientation::Vertical => y += yy as i32,
 	            }
 	        }
         }
@@ -312,7 +312,7 @@ unsafe impl WindowsControl for LinearLayout {
                                                      None);
         self.base.hwnd = hwnd;
         self.base.subclass_id = id;
-        self.base.coords = Some((px, py));
+        self.base.coords = Some((px as i32, py as i32));
         let mut x = 0;
         let mut y = 0;
         for ref mut child in self.children.as_mut_slice() {
@@ -392,11 +392,11 @@ unsafe extern "system" fn whandler(hwnd: winapi::HWND, msg: winapi::UINT, wparam
                 child.draw(Some((x, y))); //TODO padding
                 match o {
                     layout::Orientation::Horizontal if width >= cw => {
-                        x += cw;
+                        x += cw as i32;
                         width -= cw;
                     }
                     layout::Orientation::Vertical if height >= ch => {
-                        y += ch;
+                        y += ch as i32;
                         height -= ch;
                     }
                     _ => {}
