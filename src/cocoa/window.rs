@@ -237,7 +237,7 @@ extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
 
         if let Some(ref mut child) = window.child {
             let (_, h, _) = child.measure(size.width as u16, size.height as u16);
-            child.draw(Some((0, size.height as u16 - h))); //TODO padding
+            child.draw(Some((0, size.height as i32 - h as i32))); //TODO padding
         }
         if let Some(ref mut cb) = window.h_resize {
             let w2: &mut Window = mem::transmute(saved);

@@ -66,7 +66,7 @@ pub trait UiControl: UiMember {
 	fn set_layout_orientation(&mut self, layout::Orientation);
 	fn set_layout_alignment(&mut self, layout::Alignment);
     
-    fn draw(&mut self, coords: Option<(u16, u16)>);
+    fn draw(&mut self, coords: Option<(i32, i32)>);
     fn measure(&mut self, w: u16, h: u16) -> (u16, u16, bool);
 
     fn is_container_mut(&mut self) -> Option<&mut UiContainer>;

@@ -90,11 +90,11 @@ impl UiControl for Button {
     fn is_container(&self) -> Option<&UiContainer> {
         None
     }
-    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    fn draw(&mut self, coords: Option<(i32, i32)>) {
     	if coords.is_some() {
     		self.base.coords = coords;
     	}
-        unsafe {
+    	unsafe {
             let mut frame: NSRect = msg_send![self.base.control, frame];
             frame.size = NSSize::new(self.base.measured_size.0 as f64,
                                      self.base.measured_size.1 as f64);

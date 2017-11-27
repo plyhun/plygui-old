@@ -100,28 +100,37 @@ impl UiControl for LinearLayout {
 	fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
 		self.base.set_layout_alignment(alignment);
 	}
-    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    fn draw(&mut self, coords: Option<(i32, i32)>) {
     	if coords.is_some() {
     		self.base.coords = coords;
     	}
     	if let Some((x, y)) = self.base.coords {
-	        let mut x = x;
-	        let mut y = y;
+	        unsafe {
+	        	let mut frame: NSRect = msg_send![self.base.control, frame];
+	            frame.size = NSSize::new(self.base.measured_size.0 as f64,
+	                                     self.base.measured_size.1 as f64);
+	            frame.origin = NSPoint::new(x as f64, y as f64);
+	            msg_send![self.base.control, setFrame: frame];
+	        }
+	        
+	        let mut x = 0;
+	        let mut y = 0;
 	        let my_h = self.size().1;
 	        println!("draw {} at {}/{}", my_h, x, y);
 	        for mut child in self.children.as_mut_slice() {
 	            let child_size = child.size();
+	            child.draw(Some((x, my_h as i32 - y - child_size.1 as i32)));      
 	            match self.orientation {
 	                layout::Orientation::Horizontal => {
-	                    child.draw(Some((x, y)));
-	                    x += child_size.0
+	                    //child.draw(Some((x, y)));
+	                    x += child_size.0 as i32
 	                }
 	                layout::Orientation::Vertical => {
 	                	println!("child at {}/{} {} {}", x, my_h, y, child_size.1);
-	                    child.draw(Some((x, y + my_h - child_size.1)));
-	                    y += child_size.1
+	                    //child.draw(Some((x, my_h + child_size.1)));
+	                    y += child_size.1 as i32
 	                }
-	            }
+	            }  
 	        }    	
 	        if let Some(ref mut cb) = self.base.h_resize {
 	            unsafe {
@@ -343,7 +352,7 @@ unsafe impl CocoaControl for LinearLayout {
         let (pw, ph) = parent.size();
         let (w, h, _) = self.measure(pw, ph);
 
-        let rect = NSRect::new(NSPoint::new(x as f64, y as f64),
+        let rect = NSRect::new(NSPoint::new(x as f64, (ph - y - h) as f64),
                                NSSize::new(w as f64, h as f64));
 
         let base: cocoa_id = msg_send![WINDOW_CLASS.0, alloc];

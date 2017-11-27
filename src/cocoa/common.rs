@@ -28,7 +28,7 @@ pub struct CocoaControlBase {
     visibility: Visibility,
     
     pub control: cocoa_id,
-    pub coords: Option<(u16, u16)>,
+    pub coords: Option<(i32, i32)>,
     pub measured_size: (u16, u16),
     pub h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
 }
@@ -59,7 +59,7 @@ impl CocoaControlBase {
         self.control = ptr::null_mut();
     }
     fn invalidate(&mut self) {
-		unsafe {
+		/*unsafe {
 			let self_control = self.control;
 			if let Some(parent) = self.parent_mut() {
 				if let Some(real_self) = cast_cocoa_id_to_uimember(self_control) {
@@ -76,11 +76,8 @@ impl CocoaControlBase {
 						} 
 					}
 				}
-				/*if parent.native_id() != 0 as winapi::HWND {
-	        		user32::InvalidateRect(parent.native_id(), ptr::null_mut(), winapi::TRUE);
-	        	}*/
 	        }
-		}
+		}*/
 	}
     pub fn layout_width(&self) -> layout::Size {
     	self.layout.width
