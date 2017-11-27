@@ -249,12 +249,6 @@ impl UiContainer for LinearLayout {
     fn is_multi(&self) -> Option<&UiMultiContainer> {
         Some(self)
     }
-    fn is_control_mut(&mut self) -> Option<&mut UiControl> {
-    	Some(self)
-    }
-    fn is_control(&self) -> Option<&UiControl> {
-    	Some(self)
-    }
 }
 
 impl UiMultiContainer for LinearLayout {
