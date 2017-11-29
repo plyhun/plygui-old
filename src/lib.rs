@@ -1,4 +1,4 @@
-#[macro_use]
+/*#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate derive_builder;
@@ -19,20 +19,22 @@ mod cocoa;
 #[cfg(target_os = "macos")]
 use cocoa as inner;
 #[cfg(target_os = "macos")]
-pub use inner::common;
+pub use inner::common;*/
 
-pub mod ids;
+#[macro_use]
+extern crate derive_builder;
+
 pub mod development;
-
 pub mod layout;
 
-pub use inner::{NativeId, Application, Window, Button, LinearLayout};
+mod ids;
+
 pub use ids::Id;
 
 pub use std::fmt::{Result as FmtResult, Formatter, Debug};
 
 pub trait UiApplication {
-    fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<Window>;
+    fn new_window(&mut self, title: &str, width: u16, height: u16, has_menu: bool) -> Box<UiWindow>;
     fn name(&self) -> &str;
     fn start(&mut self);
 }
@@ -47,7 +49,7 @@ pub trait UiMember {
     fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
     fn id(&self) -> Id;
     
-    fn native_id(&self) -> NativeId;
+    //fn native_id(&self) -> NativeId;
     
     fn is_control(&self) -> Option<&UiControl>;
     fn is_control_mut(&mut self) -> Option<&mut UiControl>;
@@ -117,7 +119,7 @@ pub trait UiMultiContainer: UiContainer {
     }
 }
 
-pub trait UiWindow: UiMember {}
+pub trait UiWindow: UiMember + UiContainer {}
 
 pub trait UiButton: UiControl {
     //fn new(label: &str) -> Box<Self>;
