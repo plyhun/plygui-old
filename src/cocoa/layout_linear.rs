@@ -122,13 +122,10 @@ impl UiControl for LinearLayout {
 	            child.draw(Some((x, my_h as i32 - y - child_size.1 as i32)));      
 	            match self.orientation {
 	                layout::Orientation::Horizontal => {
-	                    //child.draw(Some((x, y)));
 	                    x += child_size.0 as i32
 	                }
 	                layout::Orientation::Vertical => {
-	                	println!("child at {}/{} {} {}", x, my_h, y, child_size.1);
-	                    //child.draw(Some((x, my_h + child_size.1)));
-	                    y += child_size.1 as i32
+	                	y += child_size.1 as i32
 	                }
 	            }  
 	        }    	
@@ -232,13 +229,14 @@ impl UiMultiContainer for LinearLayout {
             };
             unsafe {
                 let mut wc = common::cast_uicontrol_to_cocoa_mut(&mut new);
+                let (xx,yy) = wc.size();
                 match self.orientation {
                     layout::Orientation::Horizontal => {
                         wc.on_added_to_container(self, x, y); //TODO padding
                     }
                     layout::Orientation::Vertical => {
                         let my_h = self.size().1;
-                        wc.on_added_to_container(self, x, my_h - y); //TODO padding
+                        wc.on_added_to_container(self, x, my_h - y - yy); //TODO padding
                     }
                 }
                 self.base.control.addSubview_(wc.as_base().control);
@@ -373,7 +371,7 @@ unsafe impl CocoaControl for LinearLayout {
                     x += xx;
                 }
                 layout::Orientation::Vertical => {
-                    wc.on_added_to_container(ll2, x, h - y - yy);
+                    wc.on_added_to_container(ll2, x, y);
                     y += yy;
                 }
             }
