@@ -76,7 +76,7 @@ impl UiControl for Button {
 	fn set_layout_alignment(&mut self, alignment: layout::Alignment) {
 		self.base.set_layout_alignment(alignment);
 	}
-    fn draw(&mut self, coords: Option<(u16, u16)>) {
+    fn draw(&mut self, coords: Option<(i32, i32)>) {
     	if coords.is_some() {
     		self.base.coords = coords;
     	}

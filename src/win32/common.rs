@@ -17,7 +17,7 @@ pub struct WindowsControlBase {
     
     pub hwnd: winapi::HWND,
     pub subclass_id: u64,
-    pub coords: Option<(u16, u16)>,
+    pub coords: Option<(i32, i32)>,
     pub measured_size: (u16, u16),
 
     pub h_resize: Option<Box<FnMut(&mut UiMember, u16, u16)>>,
@@ -52,14 +52,14 @@ impl WindowsControlBase {
 					if let Some(control_self) = real_self.is_control_mut() {
 						let (pw, ph) = parent.size();
 						let wparent = common::cast_hwnd_to_windows(parent.native_id());
-						let (_,_,changed) = control_self.measure(pw, ph);
+						/*let (_,_,changed) = */control_self.measure(pw, ph);
 						control_self.draw(None);
 							
-						if changed {
+						//if changed {
 							if let Some(wparent) = wparent {
 								wparent.as_base_mut().invalidate();
 							} 
-						} 
+						//} 
 					}
 				}
 				if parent.native_id() != 0 as winapi::HWND {
