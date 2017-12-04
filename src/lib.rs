@@ -45,8 +45,7 @@ pub trait UiMember {
 
     fn set_visibility(&mut self, visibility: Visibility);
     fn visibility(&self) -> Visibility;
-    fn role<'a>(&'a self) -> UiRole<'a>;
-    fn role_mut<'a>(&'a mut self) -> UiRoleMut<'a>;
+	fn member_id(&self) -> &'static str;
     fn id(&self) -> Id;
     
     //fn native_id(&self) -> NativeId;
@@ -74,6 +73,9 @@ pub trait UiControl: UiMember {
     fn is_container_mut(&mut self) -> Option<&mut UiContainer>;
     fn is_container(&self) -> Option<&UiContainer>;
 
+	fn on_added_to_container(&mut self, &UiContainer, x: u16, y: u16);
+    fn on_removed_from_container(&mut self, &UiContainer);
+    
     fn parent(&self) -> Option<&UiContainer>;
     fn parent_mut(&mut self) -> Option<&mut UiContainer>;
     fn root(&self) -> Option<&UiContainer>;
@@ -141,32 +143,23 @@ pub enum Visibility {
     Gone,
 }
 
-pub enum UiRole<'a> {
-    Window(&'a UiWindow),
-    Button(&'a UiButton),
-    LinearLayout(&'a UiLinearLayout),
-}
-pub enum UiRoleMut<'a> {
-    Window(&'a mut UiWindow),
-    Button(&'a mut UiButton),
-    LinearLayout(&'a mut UiLinearLayout),
+#[repr(C)]
+pub struct UiControlBase {
+	pub base: UiMemberBase,
+	pub layout: development::layout::LayoutBase,
 }
 
-impl<'a> Debug for UiRole<'a> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        match *self {
-            UiRole::Window(a) => write!(f, "UiWindow ({:?})", a.id()),
-            UiRole::Button(a) => write!(f, "UiButton ({:?})", a.id()),
-            UiRole::LinearLayout(a) => write!(f, "UiLinearLayout ({:?})", a.id()),
-        }
-    }
+#[repr(C)]
+pub struct UiMemberBase {
+	pub id: Id,
+    pub visibility: Visibility,
 }
-impl<'a> Debug for UiRoleMut<'a> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        match *self {
-            UiRoleMut::Window(ref a) => write!(f, "UiWindow ({:?})", a.id()),
-            UiRoleMut::Button(ref a) => write!(f, "UiButton ({:?})", a.id()),
-            UiRoleMut::LinearLayout(ref a) => write!(f, "UiLinearLayout ({:?})", a.id()),
-        }
-    }
+
+impl UiMemberBase {
+	pub fn with_visibility(visibility: Visibility) -> UiMemberBase {
+		UiMemberBase {
+			id: ids::Id::next(),
+			visibility: visibility,
+		}
+	}
 }
