@@ -48,14 +48,14 @@ pub trait UiMember {
 	fn member_id(&self) -> &'static str;
     fn id(&self) -> Id;
     
-    //fn native_id(&self) -> NativeId;
+    unsafe fn native_id(&self) -> usize;
     
     fn is_control(&self) -> Option<&UiControl>;
     fn is_control_mut(&mut self) -> Option<&mut UiControl>;
 }
 
-pub trait UiControl: UiMember {
-    fn layout_width(&self) -> layout::Size;
+pub trait UiLayedOut: UiMember {
+	fn layout_width(&self) -> layout::Size;
 	fn layout_height(&self) -> layout::Size;
 	fn layout_gravity(&self) -> layout::Gravity;
 	fn layout_orientation(&self) -> layout::Orientation;
@@ -65,8 +65,10 @@ pub trait UiControl: UiMember {
 	fn set_layout_height(&mut self, layout::Size);
 	fn set_layout_gravity(&mut self, layout::Gravity);
 	fn set_layout_orientation(&mut self, layout::Orientation);
-	fn set_layout_alignment(&mut self, layout::Alignment);
-    
+	fn set_layout_alignment(&mut self, layout::Alignment);    
+}
+
+pub trait UiControl: UiLayedOut {
     fn draw(&mut self, coords: Option<(i32, i32)>);
     fn measure(&mut self, w: u16, h: u16) -> (u16, u16, bool);
 
@@ -76,22 +78,26 @@ pub trait UiControl: UiMember {
 	fn on_added_to_container(&mut self, &UiContainer, x: u16, y: u16);
     fn on_removed_from_container(&mut self, &UiContainer);
     
-    fn parent(&self) -> Option<&UiContainer>;
-    fn parent_mut(&mut self) -> Option<&mut UiContainer>;
-    fn root(&self) -> Option<&UiContainer>;
-    fn root_mut(&mut self) -> Option<&mut UiContainer>;
+    fn parent(&self) -> Option<&UiMemberBase>;
+    fn parent_mut(&mut self) -> Option<&mut UiMemberBase>;
+    fn root(&self) -> Option<&UiMemberBase>;
+    fn root_mut(&mut self) -> Option<&mut UiMemberBase>;
 }
 
 pub trait UiContainer: UiMember {
-    fn set_child(&mut self, Option<Box<UiControl>>) -> Option<Box<UiControl>>;
-    fn child(&self) -> Option<&UiControl>;
-    fn child_mut(&mut self) -> Option<&mut UiControl>;
-
     fn find_control_by_id_mut(&mut self, id: Id) -> Option<&mut UiControl>;
     fn find_control_by_id(&self, id: Id) -> Option<&UiControl>;
 
-    fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer>;
-    fn is_multi(&self) -> Option<&UiMultiContainer>;
+    fn is_multi_mut(&mut self) -> Option<&mut UiMultiContainer> { None }
+    fn is_multi(&self) -> Option<&UiMultiContainer> { None }
+    fn is_single_mut(&mut self) -> Option<&mut UiSingleContainer> { None }
+    fn is_single(&self) -> Option<&UiSingleContainer> { None }
+}
+
+pub trait UiSingleContainer: UiContainer {
+	fn set_child(&mut self, Option<Box<UiControl>>) -> Option<Box<UiControl>>;
+    fn child(&self) -> Option<&UiControl>;
+    fn child_mut(&mut self) -> Option<&mut UiControl>;
 }
 
 pub trait UiMultiContainer: UiContainer {
@@ -121,7 +127,7 @@ pub trait UiMultiContainer: UiContainer {
     }
 }
 
-pub trait UiWindow: UiMember + UiContainer {}
+pub trait UiWindow: UiSingleContainer {}
 
 pub trait UiButton: UiControl {
     //fn new(label: &str) -> Box<Self>;
@@ -145,7 +151,7 @@ pub enum Visibility {
 
 #[repr(C)]
 pub struct UiControlBase {
-	pub base: UiMemberBase,
+	pub member_base: UiMemberBase,
 	pub layout: development::layout::LayoutBase,
 }
 
