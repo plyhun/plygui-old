@@ -8,7 +8,7 @@ name = "plygui"
 path = "src/lib.rs"
 
 [dependencies]
-derive_builder = "~0.5"
+plygui-api = { version = "0.0.1", path = "../plygui-api" }
 
 #[target.'cfg(target_os = "macos")'.dependencies]
 #[dependencies]
