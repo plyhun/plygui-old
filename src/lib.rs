@@ -28,3 +28,4 @@ pub use plygui_api::ids::*;
 pub use plygui_api::types::*;
 pub use plygui_api::layout;
 pub use plygui_api::members;
+pub use plygui_api::utils;
