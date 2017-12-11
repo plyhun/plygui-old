@@ -9,11 +9,3 @@ path = "src/lib.rs"
 
 [dependencies]
 plygui-api = { version = "0.0.1", path = "../plygui-api" }
-
-#[target.'cfg(target_os = "macos")'.dependencies]
-#[dependencies]
-#cocoa = "~0.9"
-#core-foundation = "~0.3"
-#objc = "~0.2"
-#lazy_static = "~0.2"
-#derive_builder = "~0.5"
