@@ -10,10 +10,10 @@ path = "src/lib.rs"
 [dependencies]
 plygui-api = { version = "0.0.1", path = "../plygui-api" }
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
 plygui-win32 = { version = "0.0.1", path = "../plygui-win32", optional = true }
 
-[target.'cfg(macos)'.dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
 plygui-cocoa = { version = "0.0.1", path = "../plygui-cocoa", optional = true }
 
 [features]
