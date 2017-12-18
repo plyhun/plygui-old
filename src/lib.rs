@@ -16,3 +16,8 @@ pub use plygui_cocoa::*;
 extern crate plygui_win32;
 #[cfg(all(target_os = "windows", feature = "win32"))]
 pub use plygui_win32::*;
+
+#[cfg(feature = "markup")]
+pub fn register_markup_members(registry: &mut plygui_api::markup::MarkupRegistry) {
+	register_members(registry);
+}
