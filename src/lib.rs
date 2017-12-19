@@ -6,6 +6,8 @@ pub use plygui_api::types::*;
 pub use plygui_api::layout;
 pub use plygui_api::members;
 pub use plygui_api::utils;
+#[cfg(feature = "markup")]
+pub use plygui_api::markup;
 
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
 extern crate plygui_cocoa;
