@@ -10,6 +10,11 @@ pub use plygui_api::utils;
 #[cfg(feature = "markup")]
 pub use plygui_api::markup;
 
+#[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "qt5"))]
+extern crate plygui_qt;
+#[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "qt5"))]
+pub use plygui_qt::*;
+
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
 extern crate plygui_cocoa;
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
