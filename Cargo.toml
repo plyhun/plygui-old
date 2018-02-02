@@ -10,6 +10,9 @@ path = "src/lib.rs"
 [dependencies]
 plygui-api = { version = "0.0.1", path = "../plygui-api" }
 
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))'.dependencies]
+plygui-qt = { version = "0.0.1", path = "../plygui-qt", optional = true }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 plygui-win32 = { version = "0.0.1", path = "../plygui-win32", optional = true }
 
@@ -17,8 +20,9 @@ plygui-win32 = { version = "0.0.1", path = "../plygui-win32", optional = true }
 plygui-cocoa = { version = "0.0.1", path = "../plygui-cocoa", optional = true }
 
 [features]
+qt5 = ["plygui-qt"]
 win32 = ["plygui-win32"]
 cocoa = ["plygui-cocoa"]
-native = ["win32", "cocoa"]
+native = ["win32", "cocoa", "qt5"]
 default = ["native"]
-markup = ["plygui-api/markup", "plygui-win32/markup", "plygui-cocoa/markup"]
+markup = ["plygui-api/markup", "plygui-win32/markup", "plygui-cocoa/markup", "plygui-qt/markup"]
