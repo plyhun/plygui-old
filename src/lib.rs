@@ -6,6 +6,7 @@ pub use plygui_api::types::*;
 pub use plygui_api::layout;
 pub use plygui_api::members;
 pub use plygui_api::utils;
+pub use plygui_api::callbacks;
 #[cfg(feature = "markup")]
 pub use plygui_api::markup;
 
@@ -21,5 +22,5 @@ pub use plygui_win32::*;
 
 #[cfg(feature = "markup")]
 pub fn register_markup_members(registry: &mut plygui_api::markup::MarkupRegistry) {
-	register_members(registry);
+    register_members(registry);
 }
