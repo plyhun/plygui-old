@@ -7,8 +7,11 @@ pub use plygui_api::callbacks;
 pub use plygui_api::layout;
 pub use plygui_api::members;
 pub use plygui_api::utils;
-#[cfg(feature = "markup")]
-pub use plygui_api::markup;
+
+#[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "gtk3"))]
+extern crate plygui_gtk;
+#[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "gtk3"))]
+pub use plygui_gtk::*;
 
 #[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "qt5"))]
 extern crate plygui_qt;
@@ -24,8 +27,3 @@ pub use plygui_cocoa::*;
 extern crate plygui_win32;
 #[cfg(all(target_os = "windows", feature = "win32"))]
 pub use plygui_win32::*;
-
-#[cfg(feature = "markup")]
-pub fn register_markup_members(registry: &mut plygui_api::markup::MarkupRegistry) {
-    register_members(registry);
-}
