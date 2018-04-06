@@ -5,7 +5,6 @@ pub use plygui_api::ids::*;
 pub use plygui_api::types::*;
 pub use plygui_api::callbacks;
 pub use plygui_api::layout;
-pub use plygui_api::members;
 
 #[cfg(all(target_os = "windows", feature = "win32"))]
 extern crate plygui_win32;
