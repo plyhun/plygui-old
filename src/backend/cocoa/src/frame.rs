@@ -181,12 +181,12 @@ impl ControlInner for CocoaFrame {
     }
 
     #[cfg(feature = "markup")]
-    fn fill_from_markup(&mut self, base: &mut MemberBase, control: &mut ControlBase, markup: &plygui_api::markup::Markup, registry: &mut plygui_api::markup::MarkupRegistry) {
+    fn fill_from_markup(&mut self, base: &mut MemberBase, _control: &mut ControlBase, markup: &plygui_api::markup::Markup, registry: &mut plygui_api::markup::MarkupRegistry) {
         use plygui_api::markup::MEMBER_TYPE_FRAME;
 
         fill_from_markup_base!(self, base, markup, registry, Frame, [MEMBER_TYPE_FRAME]);
-        fill_from_markup_label!(self, &mut base.member, markup);
-        fill_from_markup_child!(self, &mut base.member, markup, registry);
+        fill_from_markup_label!(self, base, markup);
+        fill_from_markup_child!(self, base, markup, registry);
     }
 }
 

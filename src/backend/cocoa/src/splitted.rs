@@ -262,11 +262,11 @@ impl ControlInner for CocoaSplitted {
     }
 
     #[cfg(feature = "markup")]
-    fn fill_from_markup(&mut self, base: &mut MemberBase, control: &mut ControlBase, markup: &plygui_api::markup::Markup, registry: &mut plygui_api::markup::MarkupRegistry) {
-        use plygui_api::markup::MEMBER_TYPE_LINEAR_LAYOUT;
+    fn fill_from_markup(&mut self, base: &mut MemberBase, _control: &mut ControlBase, markup: &plygui_api::markup::Markup, registry: &mut plygui_api::markup::MarkupRegistry) {
+        use plygui_api::markup::MEMBER_TYPE_SPLITTED;
 
-        fill_from_markup_base!(self, base, markup, registry, Splitted, [MEMBER_TYPE_LINEAR_LAYOUT]);
-        fill_from_markup_children!(self, &mut base.member, markup, registry);
+        fill_from_markup_base!(self, base, markup, registry, Splitted, [MEMBER_TYPE_SPLITTED]);
+        fill_from_markup_children!(self, base, markup, registry);
     }
 }
 
