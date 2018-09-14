@@ -84,6 +84,7 @@ impl ControlInner for CocoaButton {
         unsafe {
             self.base.on_removed_from_container();
         }
+        self.base.invalidate();
     }
 
     fn parent(&self) -> Option<&controls::Member> {
@@ -133,31 +134,10 @@ impl HasLayoutInner for CocoaButton {
 }
 
 impl Drawable for CocoaButton {
-    fn draw(&mut self, member: &mut MemberBase, _control: &mut ControlBase, coords: Option<(i32, i32)>) {
-        if coords.is_some() {
-            self.base.coords = coords;
-        }
-        if let Some((x, y)) = self.base.coords {
-            let (_, ph) = self.parent_mut().unwrap().is_container_mut().unwrap().size();
-            unsafe {
-                let mut frame: NSRect = self.base.frame();
-                frame.size = NSSize::new((self.base.measured_size.0 as i32) as f64, (self.base.measured_size.1 as i32) as f64);
-                frame.origin = NSPoint::new(x as f64, (ph as i32 - y - self.base.measured_size.1 as i32) as f64);
-                let () = msg_send![self.base.control, setFrame: frame];
-            }
-            if let Some(ref mut cb) = member.handler_resize {
-                unsafe {
-                    let object: &Object = mem::transmute(self.base.control);
-                    let saved: *mut c_void = *object.get_ivar(common::IVAR);
-                    let mut ll2: &mut Button = mem::transmute(saved);
-                    (cb.as_mut())(ll2, self.base.measured_size.0, self.base.measured_size.1);
-                }
-            }
-        }
+    fn draw(&mut self, _member: &mut MemberBase, _control: &mut ControlBase, coords: Option<(i32, i32)>) {
+        self.base.draw(coords);
     }
     fn measure(&mut self, member: &mut MemberBase, control: &mut ControlBase, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {
-        use std::cmp::max;
-
         let old_size = self.base.measured_size;
         self.base.measured_size = match member.visibility {
             types::Visibility::Gone => (0, 0),
@@ -181,7 +161,7 @@ impl Drawable for CocoaButton {
                         label_size.1 as i32 + DEFAULT_PADDING + DEFAULT_PADDING
                     }
                 };
-                (max(0, w) as u16, max(0, h) as u16)
+                (cmp::max(0, w) as u16, cmp::max(0, h) as u16)
             },
         };
         (self.base.measured_size.0, self.base.measured_size.1, self.base.measured_size != old_size)

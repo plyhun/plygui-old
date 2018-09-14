@@ -214,20 +214,9 @@ impl HasLayoutInner for CocoaFrame {
 
 impl Drawable for CocoaFrame {
     fn draw(&mut self, _member: &mut MemberBase, _control: &mut ControlBase, coords: Option<(i32, i32)>) {
-        if coords.is_some() {
-            self.base.coords = coords;
-        }
-        if let Some((x, y)) = self.base.coords {
-            let (_, ph) = self.parent().unwrap().size();
-            unsafe {
-                let mut frame: NSRect = self.base.frame();
-                frame.size = NSSize::new((self.base.measured_size.0 as i32) as f64, (self.base.measured_size.1 as i32) as f64);
-                frame.origin = NSPoint::new((x) as f64, (ph as i32 - y - self.base.measured_size.1 as i32) as f64);
-                let () = msg_send![self.base.control, setFrame: frame];
-            }
-            if let Some(ref mut child) = self.child {
-                child.draw(Some((0, INNER_PADDING_V + self.label_padding.1 as i32)));
-            }
+        self.base.draw(coords);
+        if let Some(ref mut child) = self.child {
+            child.draw(Some((0, INNER_PADDING_V + self.label_padding.1 as i32)));
         }
     }
     fn measure(&mut self, member: &mut MemberBase, control: &mut ControlBase, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {

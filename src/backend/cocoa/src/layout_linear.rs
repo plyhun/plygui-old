@@ -204,28 +204,16 @@ impl MemberInner for CocoaLinearLayout {
 
 impl Drawable for CocoaLinearLayout {
     fn draw(&mut self, _member: &mut MemberBase, _control: &mut ControlBase, coords: Option<(i32, i32)>) {
-        if coords.is_some() {
-            self.base.coords = coords;
-        }
-        if let Some((x, y)) = self.base.coords {
-            let (_, ph) = self.parent().unwrap().size();
-            unsafe {
-                let mut frame: NSRect = msg_send![self.base.control, frame];
-                frame.size = NSSize::new((self.base.measured_size.0 as i32) as f64, (self.base.measured_size.1 as i32) as f64);
-                frame.origin = NSPoint::new(x as f64, (ph as i32 - y - self.base.measured_size.1 as i32) as f64);
-                let () = msg_send![self.base.control, setFrame: frame];
-            }
+        self.base.draw(coords);
+        let mut x = 0;
+        let mut y = 0;
 
-            let mut x = 0;
-            let mut y = 0;
-
-            for mut child in self.children.as_mut_slice() {
-                let child_size = child.size();
-                child.draw(Some((x, y)));
-                match self.orientation {
-                    layout::Orientation::Horizontal => x += child_size.0 as i32,
-                    layout::Orientation::Vertical => y += child_size.1 as i32,
-                }
+        for mut child in self.children.as_mut_slice() {
+            let child_size = child.size();
+            child.draw(Some((x, y)));
+            match self.orientation {
+                layout::Orientation::Horizontal => x += child_size.0 as i32,
+                layout::Orientation::Vertical => y += child_size.1 as i32,
             }
         }
     }
