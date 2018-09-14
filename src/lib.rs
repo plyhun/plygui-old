@@ -8,10 +8,16 @@ pub use plygui_api::layout;
 pub use plygui_api::utils;
 
 #[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "gtk3"))]
-pub extern crate plygui_gtk as imp;
+extern crate plygui_gtk;
+#[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "gtk3"))]
+pub use plygui_gtk::prelude::*;
 
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
-pub extern crate plygui_cocoa as imp;
+extern crate plygui_cocoa;
+#[cfg(all(target_os = "macos", feature = "cocoa"))]
+pub use plygui_cocoa::prelude::*;
 
 #[cfg(all(target_os = "windows", feature = "win32"))]
-pub extern crate plygui_win32 as imp;
+extern crate plygui_win32;
+#[cfg(all(target_os = "windows", feature = "win32"))]
+pub use plygui_win32::prelude::*;
