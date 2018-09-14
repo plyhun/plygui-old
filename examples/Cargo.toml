@@ -1,0 +1,17 @@
+[package]
+name = "examples"
+version = "0.1.0"
+authors = ["snuk182 <snuk188@gmail.com>"]
+
+[[bin]]
+name = "gallery"
+path = "gallery/main.rs"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))'.dependencies]
+plygui = {version = "0.0.1", path = "../src/lib", features = ["gtk3"]}
+
+[target.'cfg(target_os = "windows")'.dependencies]
+plygui = {version = "0.0.1", path = "../src/lib", features = ["win32"]}
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plygui = {version = "0.0.1", path = "../src/lib", features = ["cocoa"]}
