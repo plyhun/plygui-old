@@ -59,13 +59,11 @@ impl SplittedInner for GtkSplitted {
             ll.as_inner_mut().as_inner_mut().as_inner_mut().base.set_pointer(ptr);
         }
         {
-            use plygui_api::controls::Splitted;
-
             let self_widget: gtk::Widget = ll.as_inner_mut().as_inner_mut().as_inner_mut().base.widget.clone().into();
             let gtk_self = self_widget.downcast::<Paned>().unwrap();
             let paned = gtk_self.downcast::<Paned>().unwrap();
-            paned.pack1(common::cast_control_to_gtkwidget(ll.first()).as_ref(), false, false);
-            paned.pack2(common::cast_control_to_gtkwidget(ll.second()).as_ref(), false, false);
+            paned.pack1(common::cast_control_to_gtkwidget(ll.as_inner_mut().as_inner_mut().as_inner_mut().first()).as_ref(), false, true);
+            paned.pack2(common::cast_control_to_gtkwidget(ll.as_inner_mut().as_inner_mut().as_inner_mut().second()).as_ref(), false, true);
             paned.connect_property_position_notify(on_property_position_notify);
         }
         ll.as_inner_mut().as_inner_mut().as_inner_mut().base.widget.connect_size_allocate(on_size_allocate);
@@ -114,37 +112,93 @@ impl MemberInner for GtkSplitted {
 impl Drawable for GtkSplitted {
     fn draw(&mut self, member: &mut MemberBase, control: &mut ControlBase, coords: Option<(i32, i32)>) {
         self.base.draw(member, control, coords);
-        for ref mut child in [self.first.as_mut(), self.second.as_mut()].iter_mut() {
-            child.draw(Some((0, 0)));
-        }
+        self.first.draw(Some((0, 0)));
+        self.second.draw(Some((0, 0)));
     }
     fn measure(&mut self, member: &mut MemberBase, control: &mut ControlBase, parent_width: u16, parent_height: u16) -> (u16, u16, bool) {
         let orientation = self.layout_orientation();
         let old_size = self.base.measured_size;
+        let (first, second) = self.children_sizes();
+        let (lm, tm, rm, bm) = self.base.margins().into();
         self.base.measured_size = match member.visibility {
             types::Visibility::Gone => (0, 0),
             _ => {
-                let w = match control.layout.width {
+                let mut measured = false;
+        		let w = match control.layout.width {
                     layout::Size::Exact(w) => w,
-                    layout::Size::MatchParent | layout::Size::WrapContent => parent_width,
+                    layout::Size::MatchParent => parent_width,
+                    layout::Size::WrapContent => {
+	        			let mut w = 0;
+		                for (size, child) in [(first, self.first.as_mut()), (second, self.second.as_mut())].iter_mut() {
+		                    match orientation {
+		                    	layout::Orientation::Horizontal => {
+		                    	    let (cw, _, _) = child.measure(
+		                    	        *size,
+		                    	        utils::coord_to_size(parent_height as i32 - tm - bm)
+        		                    );
+			                    	w += cw;
+			                    },
+		                    	layout::Orientation::Vertical => {
+		                    	    let (cw, _, _) = child.measure(
+        		                    	utils::coord_to_size(parent_width as i32 - lm - rm), 
+        		                    	*size
+        		                    );
+			                    	w = cmp::max(w, cw);
+			                    },
+		                    }
+		                }
+	        			measured = true;
+	        			w
+        			}
                 };
                 let h = match control.layout.height {
                     layout::Size::Exact(h) => h,
-                    layout::Size::MatchParent | layout::Size::WrapContent => parent_height,
+                    layout::Size::MatchParent => parent_height,
+                    layout::Size::WrapContent => {
+	        			let mut h = 0;
+		                for (size, child) in [(first, self.first.as_mut()), (second, self.second.as_mut())].iter_mut() {
+		                    let ch = if measured {
+		                    	child.size().1
+		                    } else {
+		                    	let (_, ch, _) = match orientation {
+    		                    	layout::Orientation::Horizontal => {
+    		                    	    child.measure(
+            		                    	*size, 
+            		                    	utils::coord_to_size(parent_height as i32 - tm - bm)
+            		                    )
+    			                    },
+    		                    	layout::Orientation::Vertical => {
+    		                    	    child.measure(
+            		                    	utils::coord_to_size(parent_width as i32 - lm - rm), 
+            		                    	*size
+            		                    )
+    			                    },
+    		                    };
+		                    	ch
+		                    };
+		                    match orientation {
+		                    	layout::Orientation::Horizontal => {
+			                    	h = cmp::max(h, ch);
+			                    },
+		                    	layout::Orientation::Vertical => {
+			                    	h += ch;
+			                    },
+		                    }
+		                }
+	        			h
+        			}
                 };
                 (w, h)
             }
         };
-        let (first, second) = self.children_sizes();
-        let (lm, tm, rm, bm) = self.base.margins().into();
         match orientation {
             layout::Orientation::Horizontal => {
-                let size = cmp::max(0, parent_height as i32 - tm - bm) as u16;
+                let size = utils::coord_to_size(parent_height as i32 - tm - bm);
                 self.first.measure(first, size);
                 self.second.measure(second, size);
             }
             layout::Orientation::Vertical => {
-                let size = cmp::max(0, parent_width as i32 - lm - rm) as u16;
+                let size = utils::coord_to_size(parent_width as i32 - lm - rm);
                 self.first.measure(size, first);
                 self.second.measure(size, second);
             }
@@ -177,12 +231,12 @@ impl ControlInner for GtkSplitted {
 
         match o {
             layout::Orientation::Horizontal => {
-                let h = utils::coord_to_size(cmp::max(0, ph as i32 - tm - bm));
+                let h = utils::coord_to_size(ph as i32 - tm - bm);
                 self.first.on_added_to_container(self2, 0, 0, first, h);
                 self.second.on_added_to_container(self2, 0, 0, second, h);
             }
             layout::Orientation::Vertical => {
-                let w = utils::coord_to_size(cmp::max(0, pw as i32 - lm - rm));
+                let w = utils::coord_to_size(pw as i32 - lm - rm);
                 self.first.on_added_to_container(self2, 0, 0, w, first);
                 self.second.on_added_to_container(self2, 0, 0, w, second);
             }
@@ -303,10 +357,10 @@ impl MultiContainerInner for GtkSplitted {
                 child.on_removed_from_container(self2);
                 match orientation {
                     layout::Orientation::Horizontal => {
-                        self.first.on_added_to_container(self2, 0, 0, first, utils::coord_to_size(cmp::max(0, ph as i32 - tm - bm)));
+                        self.first.on_added_to_container(self2, 0, 0, first, utils::coord_to_size(ph as i32 - tm - bm));
                     }
                     layout::Orientation::Vertical => {
-                        self.first.on_added_to_container(self2, 0, 0, utils::coord_to_size(cmp::max(0, pw as i32 - lm - rm)), first);
+                        self.first.on_added_to_container(self2, 0, 0, utils::coord_to_size(pw as i32 - lm - rm), first);
                     }
                 }
             }
@@ -318,10 +372,10 @@ impl MultiContainerInner for GtkSplitted {
                 child.on_removed_from_container(self2);
                 match orientation {
                     layout::Orientation::Horizontal => {
-                        self.second.on_added_to_container(self2, 0, 0, second, utils::coord_to_size(cmp::max(0, ph as i32 - tm - bm)));
+                        self.second.on_added_to_container(self2, 0, 0, second, utils::coord_to_size(ph as i32 - tm - bm));
                     }
                     layout::Orientation::Vertical => {
-                        self.second.on_added_to_container(self2, 0, 0, utils::coord_to_size(cmp::max(0, pw as i32 - lm - rm)), second);
+                        self.second.on_added_to_container(self2, 0, 0, utils::coord_to_size(pw as i32 - lm - rm), second);
                     }
                 }
             }
@@ -390,15 +444,13 @@ fn on_property_position_notify(this: &::gtk::Paned) {
             position as f32 * 2.0
         },
     };
-    let old_splitter = ll.as_inner_mut().as_inner_mut().as_inner_mut().splitter;
     let member = unsafe { &mut *(ll.base_mut() as *mut MemberBase) };
     let control = unsafe { &mut *(ll.as_inner_mut().base_mut() as *mut ControlBase) };
-    if (old_splitter - splitter).abs() > 0.001 {
-        let ll = ll.as_inner_mut().as_inner_mut().as_inner_mut();
-        ll.splitter = splitter;
-        ll.measure(member, control, width, height);
-        ll.draw(member, control, None);
-    }
+    let ll = ll.as_inner_mut().as_inner_mut().as_inner_mut();
+    ll.splitter = splitter;
+    ll.measure(member, control, width, height);
+    ll.first.draw(Some((0, 0)));
+    ll.second.draw(Some((0, 0)));
 }
 
 impl_all_defaults!(Splitted);
