@@ -1,5 +1,3 @@
-extern crate plygui_api;
-
 pub use plygui_api::controls::*;
 pub use plygui_api::ids::*;
 pub use plygui_api::types::*;
