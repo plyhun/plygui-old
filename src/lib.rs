@@ -10,7 +10,7 @@ pub use plygui_api::utils;
 pub use plygui_gtk::prelude::*;
 
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
-pub use plygui_cocoa::prelude::*;
+pub use plygui_cocoa::*;
 
 #[cfg(all(target_os = "windows", feature = "win32"))]
 pub use plygui_win32::*;
