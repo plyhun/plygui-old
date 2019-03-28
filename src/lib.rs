@@ -13,4 +13,4 @@ pub use plygui_gtk::prelude::*;
 pub use plygui_cocoa::prelude::*;
 
 #[cfg(all(target_os = "windows", feature = "win32"))]
-pub use plygui_win32::prelude::*;
+pub use plygui_win32::*;
