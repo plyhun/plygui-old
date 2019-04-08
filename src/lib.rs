@@ -7,7 +7,7 @@ pub use plygui_api::layout;
 pub use plygui_api::utils;
 
 #[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"), feature = "gtk3"))]
-pub use plygui_gtk::prelude::*;
+pub use plygui_gtk::*;
 
 #[cfg(all(target_os = "macos", feature = "cocoa"))]
 pub use plygui_cocoa::*;
