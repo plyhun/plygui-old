@@ -9,7 +9,7 @@ name = "plygui"
 path = "src/lib.rs"
 
 [dependencies]
-plygui-api = { version = "0.0.1", path = "../plygui-api" }
+plygui-api = { version = "0.0.1", path = "../plygui-api/api" }
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))'.dependencies]
 plygui-gtk = { version = "0.0.1", path = "../plygui-gtk", optional = true }
